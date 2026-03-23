@@ -80,6 +80,13 @@ h1 { font-size: 1.5rem; font-weight: 600; margin-bottom: 0.25rem; }
   width: 200px;
 }
 
+.caveat {
+  font-size: 0.8rem;
+  color: #888;
+  font-style: italic;
+  margin-bottom: 1rem;
+}
+
 .book-count { font-size: 0.8rem; color: #999; margin-left: auto; }
 
 table {
@@ -113,6 +120,7 @@ th {
 
 th:hover { color: #000; }
 th .arrow { font-size: 0.6rem; margin-left: 0.2rem; }
+th .col-hint { font-size: 0.65rem; font-weight: 400; color: #888; text-transform: none; letter-spacing: 0; }
 
 td.num { text-align: right; font-variant-numeric: tabular-nums; }
 th.num { text-align: right; }
@@ -143,30 +151,32 @@ tr:hover td { background: #f9f9f9; }
 <h1>Book Chooser</h1>
 <p class="subtitle">Built entirely by Claude Code (Anthropic) — both the code and the dataset. A weighted ranking of ~1,200 works of literary fiction. Adjust the sliders to change what matters to you; the table re-ranks in real time. <a href="about.html">About this project &amp; category definitions</a></p>
 
+<p class="caveat">Note: all data currently from Claude and unchecked. There are likely errors.</p>
+
 <div class="controls">
   <div class="slider-group">
-    <label>Readability <span class="hint">(lower = easier)</span></label>
+    <label>Readability <span class="hint">(higher = easier to read)</span></label>
     <div class="slider-row">
       <input type="range" id="w-readability" min="0" max="100" value="70">
       <span class="slider-val" id="v-readability">70</span>
     </div>
   </div>
   <div class="slider-group">
-    <label>Length <span class="hint">(fewer pages = better)</span></label>
+    <label>Length <span class="hint">(higher = fewer pages)</span></label>
     <div class="slider-row">
       <input type="range" id="w-length" min="0" max="100" value="50">
       <span class="slider-val" id="v-length">50</span>
     </div>
   </div>
   <div class="slider-group">
-    <label>Recency <span class="hint">(more recent = better)</span></label>
+    <label>Recency <span class="hint">(higher = more recent)</span></label>
     <div class="slider-row">
       <input type="range" id="w-recency" min="0" max="100" value="50">
       <span class="slider-val" id="v-recency">50</span>
     </div>
   </div>
   <div class="slider-group">
-    <label>Canon Tier <span class="hint">(lower tier = better)</span></label>
+    <label>Canon Tier <span class="hint">(higher = more canonical)</span></label>
     <div class="slider-row">
       <input type="range" id="w-canon" min="0" max="100" value="20">
       <span class="slider-val" id="v-canon">20</span>
@@ -200,8 +210,8 @@ const COLUMNS = [
   { key: 'title',        label: 'Title',       numeric: false },
   { key: 'author',       label: 'Author',      numeric: false },
   { key: 'year_published', label: 'Year',      numeric: true },
-  { key: 'canon_tier',   label: 'Canon',       numeric: true },
-  { key: 'readability',  label: 'Readability',  numeric: true },
+  { key: 'canon_tier',   label: 'Canon Tier',  numeric: true,  hint: '(1 = most canonical)' },
+  { key: 'readability',  label: 'Readability',  numeric: true,  hint: '(1 = easiest)' },
   { key: 'pages',        label: 'Pages',       numeric: true },
   { key: 'primary_type', label: 'Type',        numeric: false },
   { key: 'tone',         label: 'Tone',        numeric: false },
@@ -338,6 +348,12 @@ function buildHeader() {
   for (const col of COLUMNS) {
     const th = document.createElement('th');
     th.textContent = col.label;
+    if (col.hint) {
+      const hint = document.createElement('span');
+      hint.className = 'col-hint';
+      hint.textContent = ' ' + col.hint;
+      th.appendChild(hint);
+    }
     if (col.numeric) th.className = 'num';
     if (col.key === 'primary_type' || col.key === 'author' || col.key === 'tone' || col.key === 'scope') th.classList.add('hide-mobile');
     const arrow = document.createElement('span');
