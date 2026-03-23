@@ -204,6 +204,8 @@ const COLUMNS = [
   { key: 'readability',  label: 'Readability',  numeric: true },
   { key: 'pages',        label: 'Pages',       numeric: true },
   { key: 'primary_type', label: 'Type',        numeric: false },
+  { key: 'tone',         label: 'Tone',        numeric: false },
+  { key: 'scope',        label: 'Scope',       numeric: false },
   { key: 'score',        label: 'Score',       numeric: true },
 ];
 
@@ -242,6 +244,8 @@ function loadData() {
           readability: parseFloat(clean.readability) || NaN,
           pages: parseFloat(clean.pages) || NaN,
           primary_type: clean.primary_type || clean.type || '',
+          tone: clean.tone || '',
+          scope: clean.scope || '',
         };
       }).filter(b => b.title);
 
@@ -335,7 +339,7 @@ function buildHeader() {
     const th = document.createElement('th');
     th.textContent = col.label;
     if (col.numeric) th.className = 'num';
-    if (col.key === 'primary_type' || col.key === 'author') th.classList.add('hide-mobile');
+    if (col.key === 'primary_type' || col.key === 'author' || col.key === 'tone' || col.key === 'scope') th.classList.add('hide-mobile');
     const arrow = document.createElement('span');
     arrow.className = 'arrow';
     th.appendChild(arrow);
@@ -372,6 +376,8 @@ function renderTable() {
     else if (col === 'title') { va = a.title.toLowerCase(); vb = b.title.toLowerCase(); }
     else if (col === 'author') { va = a.author.toLowerCase(); vb = b.author.toLowerCase(); }
     else if (col === 'primary_type') { va = a.primary_type.toLowerCase(); vb = b.primary_type.toLowerCase(); }
+    else if (col === 'tone') { va = a.tone.toLowerCase(); vb = b.tone.toLowerCase(); }
+    else if (col === 'scope') { va = a.scope.toLowerCase(); vb = b.scope.toLowerCase(); }
     else if (col === 'year_published') { va = a.year_published || -9999; vb = b.year_published || -9999; }
     else if (col === 'canon_tier') { va = a.canon_tier || 99; vb = b.canon_tier || 99; }
     else if (col === 'readability') { va = a.readability || 99; vb = b.readability || 99; }
@@ -402,7 +408,7 @@ function renderTable() {
     for (const col of COLUMNS) {
       const td = document.createElement('td');
       if (col.numeric) td.className = 'num';
-      if (col.key === 'primary_type' || col.key === 'author') td.classList.add('hide-mobile');
+      if (col.key === 'primary_type' || col.key === 'author' || col.key === 'tone' || col.key === 'scope') td.classList.add('hide-mobile');
 
       switch (col.key) {
         case 'rank':
@@ -429,6 +435,12 @@ function renderTable() {
           break;
         case 'primary_type':
           td.textContent = book.primary_type;
+          break;
+        case 'tone':
+          td.textContent = book.tone;
+          break;
+        case 'scope':
+          td.textContent = book.scope;
           break;
         case 'score':
           const pct = Math.round((1 - book.score) * 100);
