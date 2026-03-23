@@ -260,7 +260,7 @@ function getWeights() {
   };
 }
 
-// Linear normalization: returns 0 (best) to 1 (worst)
+// Min-max normalization mapped to 0–1
 function normalize(values) {
   const valid = values.filter(v => !isNaN(v));
   if (valid.length === 0) return values.map(() => NaN);
@@ -268,6 +268,31 @@ function normalize(values) {
   const max = Math.max(...valid);
   if (max === min) return values.map(v => isNaN(v) ? NaN : 0.5);
   return values.map(v => isNaN(v) ? NaN : (v - min) / (max - min));
+}
+
+// Year: log-linear from 1700 to 2022, more recent = better (0). Inverted.
+// Offset so log works: treat distance-from-2022 as the value to log.
+// 2022 → distance 0 (best), 1700 → distance 322 (worst)
+function normalizeYear(values) {
+  const maxDist = 2022 - 1700; // 322
+  const logMax = Math.log(maxDist + 1);
+  return values.map(v => {
+    if (isNaN(v)) return NaN;
+    const clamped = Math.max(1700, Math.min(2022, v));
+    const dist = 2022 - clamped;
+    return Math.log(dist + 1) / logMax; // 2022→0, 1700→1, log-scaled
+  });
+}
+
+// Pages: log-linear from 150 (best=0) to 900 (worst=1), clamped at both ends
+function normalizePages(values) {
+  const logMin = Math.log(150);
+  const logMax = Math.log(900);
+  return values.map(v => {
+    if (isNaN(v)) return NaN;
+    const clamped = Math.max(150, Math.min(900, v));
+    return (Math.log(clamped) - logMin) / (logMax - logMin);
+  });
 }
 
 function rank() {
@@ -281,8 +306,8 @@ function rank() {
   const canonVals = allBooks.map(b => b.canon_tier);       // lower better
 
   const normRead  = normalize(readVals);
-  const normPages = normalize(pageVals);
-  const normYear  = normalize(yearVals).map(v => isNaN(v) ? NaN : 1 - v); // invert: recent = low score
+  const normPages = normalizePages(pageVals);
+  const normYear  = normalizeYear(yearVals);
   const normCanon = normalize(canonVals);
 
   allBooks.forEach((book, i) => {
