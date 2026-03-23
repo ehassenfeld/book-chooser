@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>About — Book Chooser</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: #1a1a1a;
+  background: #fafafa;
+  padding: 1.5rem;
+  max-width: 720px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+a { color: #1a1a1a; }
+a:hover { color: #555; }
+
+h1 { font-size: 1.5rem; font-weight: 600; margin-bottom: 0.25rem; }
+.back { font-size: 0.8rem; color: #666; margin-bottom: 1.5rem; display: inline-block; }
+
+.summary {
+  margin-bottom: 2rem;
+  font-size: 0.95rem;
+}
+
+.toc {
+  margin-bottom: 2rem;
+  font-size: 0.875rem;
+}
+.toc a { margin-right: 1.5rem; }
+
+h2 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-top: 2.5rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-top: 1.25rem;
+  margin-bottom: 0.25rem;
+}
+
+p { margin-bottom: 0.75rem; font-size: 0.875rem; }
+
+.def-block {
+  margin-bottom: 1.25rem;
+  padding-left: 0.75rem;
+  border-left: 2px solid #ddd;
+}
+
+.def-block p { margin-bottom: 0.35rem; }
+
+.examples {
+  margin: 0.35rem 0 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.825rem;
+  color: #444;
+}
+
+.examples li {
+  margin-bottom: 0.3rem;
+  padding-left: 1rem;
+  text-indent: -1rem;
+}
+
+.examples li::before {
+  content: "—";
+  margin-right: 0.35rem;
+  color: #999;
+}
+
+.examples em { font-style: italic; }
+
+.section-intro {
+  color: #555;
+  font-style: italic;
+  margin-bottom: 1rem;
+}
+
+@media (max-width: 700px) {
+  body { padding: 0.75rem; }
+}
+</style>
+</head>
+<body>
+
+<h1>About Book Chooser</h1>
+<a href="index.html" class="back">&larr; Back to rankings</a>
+
+<div class="summary">
+<p>Book Chooser is a weighted ranking of ~1,200 works of literary fiction. Adjust the sliders to tell it what you care about — readability, length, recency, canon status — and it re-ranks in real time. The dataset and code were built entirely by Claude (Anthropic).</p>
+<p>The list draws on Harold Bloom's Western Canon, the NYT 100 Best Books of the 21st Century, Booker and Pulitzer longlists, and dozens of other prize and critics' lists. Recent years are deliberately overrepresented: if you're choosing what to read next, you're more likely to want something from the last few years than from 1847.</p>
+</div>
+
+<div class="toc">
+  <a href="#type">Type</a>
+  <a href="#tone">Tone</a>
+  <a href="#scope">Scope</a>
+</div>
+
+<h2 id="type">Primary Type</h2>
+<p class="section-intro">The dominant reading experience — what makes a book tick. Each book gets one.</p>
+
+<div class="def-block">
+<h3>Psychological Portrait</h3>
+<p>The engine is a specific mind rendered with precision. You read to understand how someone thinks, perceives, deceives themselves, or fails to see what's obvious. The pleasure is recognition — you watch a character's inner logic unfold and see where it leads them wrong (or right). Plot exists to pressurize the psychology. Differs from Interiority in that you observe the mind from slight distance and can see its patterns, rather than being submerged in raw sensation.</p>
+<ul class="examples">
+<li><em>Remains of the Day</em> — Stevens's entire worldview is built on self-deception about duty and love. You can see the pattern he can't.</li>
+<li><em>Madame Bovary</em> — Emma's romantic fantasies are rendered with such precision that you understand exactly how she mistakes longing for meaning.</li>
+</ul>
+</div>
+
+<div class="def-block">
+<h3>Social World</h3>
+<p>The engine is a community, class, institution, or society in motion. You read to see how people behave in groups — how status works, how manners encode power, how institutions shape lives. Individual psychology serves the social picture, not the other way around. These books make you understand a world.</p>
+<ul class="examples">
+<li><em>Middlemarch</em> — An entire English town in the 1830s: marriages, politics, money, ambition, all interlocking. The individual stories are threads in the social fabric.</li>
+<li><em>White Teeth</em> — Three families in North London across decades. Immigration, assimilation, religion, and class collide in a portrait of multicultural Britain.</li>
+</ul>
+</div>
+
+<div class="def-block">
+<h3>Moral Crucible</h3>
+<p>The engine is an ethical dilemma with genuine stakes. The book puts a character in a position where every available action has real costs, and you feel the weight of the choice. These books change how you think about right and wrong — not by arguing a position, but by making you inhabit the difficulty.</p>
+<ul class="examples">
+<li><em>Crime and Punishment</em> — Raskolnikov commits murder to test a theory about his own exceptionalism, then lives inside the consequences.</li>
+<li><em>Beloved</em> — Sethe killed her daughter rather than let her be taken back into slavery. The novel makes you sit with that choice and everything it costs.</li>
+</ul>
+</div>
+
+<div class="def-block">
+<h3>Interiority</h3>
+<p>The engine is the texture of consciousness itself — what it feels like to be inside a mind, moment to moment. Plot is secondary to perception. Time bends, dilates, compresses. The prose doesn't describe experience; it enacts it. These books require (and reward) slow reading. Differs from Psychological Portrait in that you're submerged in the mind rather than observing it.</p>
+<ul class="examples">
+<li><em>Mrs Dalloway</em> — A single day in London. The novel moves through Clarissa's thoughts the way thoughts actually move: by association, memory, sensation.</li>
+<li><em>To the Lighthouse</em> — Ten years pass in a middle section of pure time. The rest is the Ramsay family's consciousness, rendered at the level of perception itself.</li>
+</ul>
+</div>
+
+<div class="def-block">
+<h3>Dreamlike</h3>
+<p>The engine is felt logic rather than realist logic. Events don't follow ordinary causation. Magical things happen without explanation, or reality is subtly (or wildly) off. You read for the images, the mood, the way meaning emerges through resonance rather than argument. The books resist paraphrase — you can't reduce them to a thesis.</p>
+<ul class="examples">
+<li><em>One Hundred Years of Solitude</em> — People ascend to heaven while hanging laundry. A rain lasts four years. The magic isn't metaphor — it's just how this world works.</li>
+<li><em>The Master and Margarita</em> — The Devil arrives in Soviet Moscow and stages a magic show. Realism and fantasy coexist without the novel asking you to reconcile them.</li>
+</ul>
+</div>
+
+<div class="def-block">
+<h3>Compressed</h3>
+<p>The engine is what's left out. The prose is spare. Sentences are short. Gaps carry meaning. The devastating thing happens between paragraphs, in a gesture, in what a character doesn't say. These books teach you to read silence.</p>
+<ul class="examples">
+<li><em>Small Things Like These</em> (Claire Keegan) — A coal merchant in 1985 Ireland discovers what's happening at the local convent. The whole moral weight lands in a few pages.</li>
+<li><em>So Long, See You Tomorrow</em> (William Maxwell) — A boy fails to acknowledge a friend after a tragedy. The novel is built around that silence — what wasn't said, what can't be undone.</li>
+</ul>
+</div>
+
+<div class="def-block">
+<h3>Epic/Generational</h3>
+<p>The engine is the sweep of time. You read to see how decades or centuries transform families, communities, or nations. Individual lives are threads in a larger weave. The book's power comes from scope — from watching patterns repeat, deviate, and resolve across generations.</p>
+<ul class="examples">
+<li><em>Pachinko</em> — Four generations of a Korean family in Japan, from 1911 to the 1980s. Each generation inherits and transforms the previous one's compromises.</li>
+<li><em>My Brilliant Friend</em> — Two women's lives tracked from childhood in 1950s Naples through old age. The friendship is the lens for class, education, violence, and ambition across decades.</li>
+</ul>
+</div>
+
+<div class="def-block">
+<h3>Satirical</h3>
+<p>The engine is comic exaggeration, irony, or absurdity deployed to expose human folly, institutional dysfunction, or cultural pretension. You read to laugh — and the laughter cuts. The comedy isn't decoration; it's the method of insight.</p>
+<ul class="examples">
+<li><em>Catch-22</em> — The military bureaucracy is so absurd it becomes its own logic system. The humor is the argument: this is what institutions do to people.</li>
+<li><em>A Confederacy of Dunces</em> — Ignatius J. Reilly is monstrous, deluded, and hilarious. The satire works because he's recognizable — everyone knows someone with that exact combination of intelligence and self-pity.</li>
+</ul>
+</div>
+
+<div class="def-block">
+<h3>Formal/Experimental</h3>
+<p>The engine is the structure or form itself. The book does something unusual with narrative shape — fragments, nested stories, unreliable frames, multiple reading paths, typographic play. Part of the reading experience is figuring out how the thing is built. Form and content are inseparable.</p>
+<ul class="examples">
+<li><em>Pale Fire</em> — A 999-line poem with an unhinged commentary that may be the real story. You have to decide what's true by reading the architecture.</li>
+<li><em>If on a winter's night a traveler</em> — You keep starting novels that get interrupted. The book is about the act of reading itself, and it makes the form do that work.</li>
+</ul>
+</div>
+
+<div class="def-block">
+<h3>Fable/Allegory</h3>
+<p>The engine is a simplified or heightened world that stands for something larger. Characters may be types rather than fully individuated people. Settings may be unnamed or stylized. The book's power comes from the clarity and resonance of its central metaphor, not from psychological nuance.</p>
+<ul class="examples">
+<li><em>Animal Farm</em> — The allegory is transparent — revolution, corruption, "all animals are equal" — and its power comes from how cleanly the pattern maps.</li>
+<li><em>The Plague</em> — A city sealed off by epidemic. The characters are less individuals than stances toward suffering: the doctor who acts, the journalist who records, the priest who interprets.</li>
+</ul>
+</div>
+
+<h2 id="tone">Tone</h2>
+<p class="section-intro">The emotional register — what the book feels like to read. Each book gets one or two.</p>
+
+<div class="def-block">
+<h3>Warm</h3>
+<p>Generous, humane, ultimately hopeful even when painful. The author has affection for the characters.</p>
+<ul class="examples">
+<li><em>Gilead</em> (Marilynne Robinson) — A dying father writes to his young son. The tenderness is in every sentence, but it never softens the hard questions about faith and regret.</li>
+<li><em>The God of Small Things</em> (Arundhati Roy) — Even as it chronicles cruelty and caste violence, the novel's gaze is loving. The children at its center are rendered with fierce protectiveness.</li>
+</ul>
+</div>
+
+<div class="def-block">
+<h3>Cold/Austere</h3>
+<p>Precise, detached, unsentimental. The prose observes without embracing. Not hostile — just clear-eyed.</p>
+<ul class="examples">
+<li><em>The Stranger</em> (Camus) — Meursault reports his mother's death, a murder, his trial, all in the same flat register. The detachment is the point.</li>
+<li><em>Disgrace</em> (Coetzee) — A professor's life unravels in post-apartheid South Africa. The prose refuses to comfort him or the reader.</li>
+</ul>
+</div>
+
+<div class="def-block">
+<h3>Dark</h3>
+<p>Disturbing, relentless, unsparing. The book doesn't look away from suffering or cruelty.</p>
+<ul class="examples">
+<li><em>Blood Meridian</em> (McCarthy) — Violence on the American frontier rendered in biblical prose. The novel doesn't flinch and doesn't explain.</li>
+<li><em>A Little Life</em> (Yanagihara) — Trauma accumulated without relief. The book's method is accumulation — it keeps going past the point where you'd expect reprieve.</li>
+</ul>
+</div>
+
+<div class="def-block">
+<h3>Comic</h3>
+<p>Genuinely funny, even when serious underneath. The humor is structural, not incidental.</p>
+<ul class="examples">
+<li><em>The Prime of Miss Jean Brodie</em> (Muriel Spark) — A charismatic teacher's influence on her students, told in Spark's lethal deadpan. The comedy is in the gap between what Brodie believes about herself and what's actually happening.</li>
+<li><em>A Confederacy of Dunces</em> (John Kennedy Toole) — Ignatius railing against modernity from his bedroom in New Orleans. The comedy is character: self-importance that has curdled into a worldview.</li>
+</ul>
+</div>
+
+<div class="def-block">
+<h3>Elegiac</h3>
+<p>Suffused with loss, nostalgia, or the passing of time. The book looks backward with longing or grief.</p>
+<ul class="examples">
+<li><em>Never Let Me Go</em> (Ishiguro) — The narrator looks back on a childhood that was always haunted by what was coming. The restraint makes the grief enormous.</li>
+<li><em>The Great Gatsby</em> (Fitzgerald) — Nick narrates from the far side of a summer that destroyed everything. The famous last line is the whole book's mood: reaching for something already gone.</li>
+</ul>
+</div>
+
+<div class="def-block">
+<h3>Angry</h3>
+<p>Driven by outrage at injustice. The anger is the energy that powers the prose.</p>
+<ul class="examples">
+<li><em>Native Son</em> (Richard Wright) — Bigger Thomas's life in 1930s Chicago. The novel's anger at the systems that produced him is inseparable from the storytelling.</li>
+<li><em>The Fire Next Time</em> (James Baldwin) — Baldwin writes to his nephew about race in America. The prose is controlled fire — fury held in perfect sentences.</li>
+</ul>
+</div>
+
+<h2 id="scope">Scope</h2>
+<p class="section-intro">The canvas — how much world the book tries to hold. Each book gets one.</p>
+
+<div class="def-block">
+<h3>Intimate</h3>
+<p>One or two characters, a single situation or relationship. The world is small.</p>
+<ul class="examples">
+<li><em>The Old Man and the Sea</em> — One man, one fish, the ocean. Nothing else enters.</li>
+<li><em>The Stranger</em> — Meursault's consciousness is the entire world of the novel. Other people are surfaces he registers but doesn't penetrate.</li>
+</ul>
+</div>
+
+<div class="def-block">
+<h3>Chamber</h3>
+<p>A family or small group. The relationships between a handful of people are the universe.</p>
+<ul class="examples">
+<li><em>Revolutionary Road</em> — Frank and April Wheeler's marriage is the whole stage. The neighbors exist to reflect pressure back onto the central relationship.</li>
+<li><em>Remains of the Day</em> — Stevens and Miss Kenton, a great house, decades of repressed feeling. The world is as small as a butler's pantry.</li>
+</ul>
+</div>
+
+<div class="def-block">
+<h3>Social</h3>
+<p>A community, neighborhood, institution, or subculture. The book maps a world with many inhabitants.</p>
+<ul class="examples">
+<li><em>Middlemarch</em> — Dorothea, Lydgate, Casaubon, Bulstrode, the Garths — a whole town's worth of intersecting lives. The novel is about how a community works.</li>
+<li><em>Things Fall Apart</em> — Okonkwo's story is also the story of Umuofia: its customs, its logic, its dissolution under colonial pressure.</li>
+</ul>
+</div>
+
+<div class="def-block">
+<h3>Panoramic</h3>
+<p>A nation, era, or civilization. The book tries to hold an entire world or sweep of history.</p>
+<ul class="examples">
+<li><em>War and Peace</em> — Napoleon's invasion of Russia seen through aristocrats, soldiers, and peasants. The book tries to hold an entire civilization in motion.</li>
+<li><em>One Hundred Years of Solitude</em> — Seven generations of Buendías and the founding, rise, and destruction of Macondo. The scope is a century of Latin American history rendered as myth.</li>
+</ul>
+</div>
+
+</body>
+</html>
