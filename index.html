@@ -118,6 +118,7 @@ th {
   white-space: nowrap;
 }
 
+th { position: relative; }
 th:hover { color: #000; }
 th .arrow { font-size: 0.6rem; margin-left: 0.2rem; }
 th .col-hint { display: block; font-size: 0.6rem; font-weight: 400; color: #888; text-transform: none; letter-spacing: 0; white-space: nowrap; }
@@ -135,6 +136,64 @@ tr:hover td { background: #f9f9f9; }
   vertical-align: middle;
   margin-right: 0.4rem;
 }
+
+.filter-btn {
+  display: inline-block;
+  margin-left: 0.25rem;
+  font-size: 0.6rem;
+  color: #bbb;
+  cursor: pointer;
+  vertical-align: middle;
+}
+.filter-btn:hover { color: #333; }
+.filter-btn.active { color: #333; }
+
+.filter-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  max-height: 260px;
+  overflow-y: auto;
+  z-index: 100;
+  min-width: 120px;
+  font-size: 0.8rem;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+}
+.filter-option {
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+  white-space: nowrap;
+  color: #333;
+}
+.filter-option:hover { background: #f0f0f0; }
+.filter-option.selected { background: #e8e8e8; font-weight: 600; }
+
+.active-filters {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.filter-tag {
+  font-size: 0.75rem;
+  background: #e8e8e8;
+  padding: 0.15rem 0.5rem;
+  border-radius: 3px;
+  color: #333;
+}
+.filter-tag .remove {
+  cursor: pointer;
+  margin-left: 0.35rem;
+  color: #999;
+  font-weight: 600;
+}
+.filter-tag .remove:hover { color: #333; }
 
 @media (max-width: 700px) {
   body { padding: 0.75rem; }
@@ -194,6 +253,7 @@ tr:hover td { background: #f9f9f9; }
     </select>
   </label>
   <input type="text" class="search-box" id="search" placeholder="Filter by title or author…">
+  <span class="active-filters" id="activeFilters"></span>
   <span class="book-count" id="bookCount"></span>
 </div>
 
@@ -210,12 +270,13 @@ const COLUMNS = [
   { key: 'title',        label: 'Title',       numeric: false },
   { key: 'author',       label: 'Author',      numeric: false },
   { key: 'year_published', label: 'Year',      numeric: true },
-  { key: 'canon_tier',   label: 'Canon Tier',  numeric: true,  hint: '(1 = most canonical)' },
-  { key: 'readability',  label: 'Readability',  numeric: true,  hint: '(1 = easiest)' },
+  { key: 'canon_tier',   label: 'Canon Tier',  numeric: true,  hint: '(1 = most canonical)', filterable: true },
+  { key: 'readability',  label: 'Readability',  numeric: true,  hint: '(1 = easiest)', filterable: true },
   { key: 'pages',        label: 'Pages',       numeric: true },
-  { key: 'primary_type', label: 'Type',        numeric: false },
-  { key: 'tone',         label: 'Tone',        numeric: false },
-  { key: 'scope',        label: 'Scope',       numeric: false },
+  { key: 'primary_type', label: 'Type',        numeric: false, filterable: true },
+  { key: 'tone',         label: 'Tone',        numeric: false, filterable: true },
+  { key: 'scope',        label: 'Scope',       numeric: false, filterable: true },
+  { key: 'language',     label: 'Language',    numeric: false, filterable: true },
   { key: 'score',        label: 'Score',       numeric: true },
 ];
 
@@ -223,8 +284,89 @@ let allBooks = [];
 let sortCol = 'score';
 let sortAsc = true; // for score, lower = better (best rank)
 let currentSort = { col: 'score', asc: true };
+let activeFilters = {}; // { colKey: 'value', ... }
+let openDropdown = null; // currently open dropdown element
 
 const $ = id => document.getElementById(id);
+
+function filterValue(book, key) {
+  if (key === 'canon_tier') return isNaN(book.canon_tier) ? '' : String(book.canon_tier);
+  if (key === 'readability') return isNaN(book.readability) ? '' : String(book.readability);
+  return book[key] || '';
+}
+
+function closeFilterDropdown() {
+  if (openDropdown) { openDropdown.remove(); openDropdown = null; }
+}
+
+function toggleFilterDropdown(colKey, thEl) {
+  // If already open for this column, close it
+  if (openDropdown && openDropdown.dataset.col === colKey) {
+    closeFilterDropdown();
+    return;
+  }
+  closeFilterDropdown();
+
+  // Collect unique values
+  const vals = new Set();
+  allBooks.forEach(b => {
+    const v = filterValue(b, colKey);
+    if (v) vals.add(v);
+  });
+  const sorted = [...vals].sort((a, b) => {
+    // numeric sort for canon_tier and readability
+    const na = parseFloat(a), nb = parseFloat(b);
+    if (!isNaN(na) && !isNaN(nb)) return na - nb;
+    return a.localeCompare(b);
+  });
+
+  const dd = document.createElement('div');
+  dd.className = 'filter-dropdown';
+  dd.dataset.col = colKey;
+
+  // "All" option
+  const allOpt = document.createElement('div');
+  allOpt.className = 'filter-option' + (!activeFilters[colKey] ? ' selected' : '');
+  allOpt.textContent = 'All';
+  allOpt.addEventListener('click', (e) => {
+    e.stopPropagation();
+    delete activeFilters[colKey];
+    closeFilterDropdown();
+    renderTable();
+  });
+  dd.appendChild(allOpt);
+
+  // Value options
+  for (const val of sorted) {
+    const opt = document.createElement('div');
+    opt.className = 'filter-option' + (activeFilters[colKey] === val ? ' selected' : '');
+    // For canon tier, show the full label
+    if (colKey === 'canon_tier') {
+      const labels = { '1': '1 — Undisputed peak', '2': '2 — Near-universal', '3': '3 — Strong canon',
+        '4': '4 — Established', '5': '5 — Respected', '6': '6 — Extended', '7': '7 — Outer edge',
+        '8': '8 — Possible', '9': '9 — Unlikely' };
+      opt.textContent = labels[val] || val;
+    } else {
+      opt.textContent = val;
+    }
+    opt.addEventListener('click', (e) => {
+      e.stopPropagation();
+      activeFilters[colKey] = val;
+      closeFilterDropdown();
+      renderTable();
+    });
+    dd.appendChild(opt);
+  }
+
+  thEl.appendChild(dd);
+  openDropdown = dd;
+}
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.filter-dropdown') && !e.target.closest('.filter-btn')) {
+    closeFilterDropdown();
+  }
+});
 
 // Parse canon tier number from "1 - Undisputed peak" → 1
 function parseCanon(val) {
@@ -256,6 +398,7 @@ function loadData() {
           primary_type: clean.primary_type || clean.type || '',
           tone: clean.tone || '',
           scope: clean.scope || '',
+          language: clean.language || '',
         };
       }).filter(b => b.title);
 
@@ -356,10 +499,21 @@ function buildHeader() {
       th.appendChild(hint);
     }
     if (col.numeric) th.className = 'num';
-    if (col.key === 'primary_type' || col.key === 'author' || col.key === 'tone' || col.key === 'scope') th.classList.add('hide-mobile');
+    if (col.key === 'primary_type' || col.key === 'author' || col.key === 'tone' || col.key === 'scope' || col.key === 'language') th.classList.add('hide-mobile');
     const arrow = document.createElement('span');
     arrow.className = 'arrow';
     th.appendChild(arrow);
+    if (col.filterable) {
+      const filterBtn = document.createElement('span');
+      filterBtn.className = 'filter-btn';
+      filterBtn.textContent = ' ▾';
+      filterBtn.title = 'Filter';
+      filterBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleFilterDropdown(col.key, th);
+      });
+      th.appendChild(filterBtn);
+    }
     th.addEventListener('click', () => {
       if (currentSort.col === col.key) {
         currentSort.asc = !currentSort.asc;
@@ -377,11 +531,39 @@ function renderTable() {
   const query = $('search').value.toLowerCase();
   let filtered = allBooks;
   if (query) {
-    filtered = allBooks.filter(b =>
+    filtered = filtered.filter(b =>
       b.title.toLowerCase().includes(query) ||
       b.author.toLowerCase().includes(query)
     );
   }
+
+  // Apply column filters
+  for (const [colKey, val] of Object.entries(activeFilters)) {
+    if (val) filtered = filtered.filter(b => filterValue(b, colKey) === val);
+  }
+
+  // Render active filter tags
+  const af = $('activeFilters');
+  af.innerHTML = '';
+  for (const [colKey, val] of Object.entries(activeFilters)) {
+    const colDef = COLUMNS.find(c => c.key === colKey);
+    const tag = document.createElement('span');
+    tag.className = 'filter-tag';
+    tag.textContent = (colDef ? colDef.label : colKey) + ': ' + val;
+    const rm = document.createElement('span');
+    rm.className = 'remove';
+    rm.textContent = '×';
+    rm.addEventListener('click', () => { delete activeFilters[colKey]; renderTable(); });
+    tag.appendChild(rm);
+    af.appendChild(tag);
+  }
+
+  // Update filter button active states
+  const ths2 = $('headerRow').querySelectorAll('th');
+  COLUMNS.forEach((c, i) => {
+    const btn = ths2[i].querySelector('.filter-btn');
+    if (btn) btn.classList.toggle('active', !!activeFilters[c.key]);
+  });
 
   // Sort
   const col = currentSort.col;
@@ -395,6 +577,7 @@ function renderTable() {
     else if (col === 'primary_type') { va = a.primary_type.toLowerCase(); vb = b.primary_type.toLowerCase(); }
     else if (col === 'tone') { va = a.tone.toLowerCase(); vb = b.tone.toLowerCase(); }
     else if (col === 'scope') { va = a.scope.toLowerCase(); vb = b.scope.toLowerCase(); }
+    else if (col === 'language') { va = a.language.toLowerCase(); vb = b.language.toLowerCase(); }
     else if (col === 'year_published') { va = a.year_published || -9999; vb = b.year_published || -9999; }
     else if (col === 'canon_tier') { va = a.canon_tier || 99; vb = b.canon_tier || 99; }
     else if (col === 'readability') { va = a.readability || 99; vb = b.readability || 99; }
@@ -425,7 +608,7 @@ function renderTable() {
     for (const col of COLUMNS) {
       const td = document.createElement('td');
       if (col.numeric) td.className = 'num';
-      if (col.key === 'primary_type' || col.key === 'author' || col.key === 'tone' || col.key === 'scope') td.classList.add('hide-mobile');
+      if (col.key === 'primary_type' || col.key === 'author' || col.key === 'tone' || col.key === 'scope' || col.key === 'language') td.classList.add('hide-mobile');
 
       switch (col.key) {
         case 'rank':
@@ -458,6 +641,9 @@ function renderTable() {
           break;
         case 'scope':
           td.textContent = book.scope;
+          break;
+        case 'language':
+          td.textContent = book.language;
           break;
         case 'score':
           const pct = Math.round((1 - book.score) * 100);
