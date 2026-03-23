@@ -13,6 +13,8 @@ Adjust the sliders to change how much each dimension matters. The table re-ranks
 
 ## Data
 
+**Note: all data is currently from Claude and unchecked. There are likely errors.**
+
 `books.csv` contains ~1,200 works of literary fiction with columns for title, author, year published, canon tier, primary type, tone, scope, readability, pages, and language. The app parses whatever columns exist dynamically — adding new columns won't break anything.
 
 ### Where the list came from
