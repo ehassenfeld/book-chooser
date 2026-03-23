@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Book Chooser</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: #1a1a1a;
+  background: #fafafa;
+  padding: 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  line-height: 1.5;
+}
+
+h1 { font-size: 1.5rem; font-weight: 600; margin-bottom: 0.25rem; }
+.subtitle { color: #666; font-size: 0.875rem; margin-bottom: 1.5rem; }
+
+.controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+}
+
+.slider-group label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+  color: #333;
+}
+
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.slider-row input[type="range"] { flex: 1; accent-color: #333; }
+.slider-val {
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  min-width: 2ch;
+  text-align: right;
+  color: #666;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.toolbar label { font-size: 0.8rem; color: #666; }
+.toolbar select {
+  font-size: 0.8rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+}
+
+.search-box {
+  font-size: 0.8rem;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  width: 200px;
+}
+
+.book-count { font-size: 0.8rem; color: #999; margin-left: auto; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+thead { background: #f5f5f5; }
+
+th, td {
+  padding: 0.5rem 0.65rem;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+th {
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #555;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+th:hover { color: #000; }
+th .arrow { font-size: 0.6rem; margin-left: 0.2rem; }
+
+td.num { text-align: right; font-variant-numeric: tabular-nums; }
+th.num { text-align: right; }
+
+tr:hover td { background: #f9f9f9; }
+
+.score-bar {
+  display: inline-block;
+  height: 6px;
+  border-radius: 3px;
+  background: #333;
+  vertical-align: middle;
+  margin-right: 0.4rem;
+}
+
+@media (max-width: 700px) {
+  body { padding: 0.75rem; }
+  .controls { grid-template-columns: 1fr; }
+  table { font-size: 0.7rem; }
+  th, td { padding: 0.35rem 0.4rem; }
+  .hide-mobile { display: none; }
+  .search-box { width: 140px; }
+}
+</style>
+</head>
+<body>
+
+<h1>Book Chooser</h1>
+<p class="subtitle">Weighted ranking of literary fiction by readability, length, recency, and canon status</p>
+
+<div class="controls">
+  <div class="slider-group">
+    <label>Readability <span class="hint">(lower = easier)</span></label>
+    <div class="slider-row">
+      <input type="range" id="w-readability" min="0" max="100" value="70">
+      <span class="slider-val" id="v-readability">70</span>
+    </div>
+  </div>
+  <div class="slider-group">
+    <label>Length <span class="hint">(fewer pages = better)</span></label>
+    <div class="slider-row">
+      <input type="range" id="w-length" min="0" max="100" value="50">
+      <span class="slider-val" id="v-length">50</span>
+    </div>
+  </div>
+  <div class="slider-group">
+    <label>Recency <span class="hint">(more recent = better)</span></label>
+    <div class="slider-row">
+      <input type="range" id="w-recency" min="0" max="100" value="50">
+      <span class="slider-val" id="v-recency">50</span>
+    </div>
+  </div>
+  <div class="slider-group">
+    <label>Canon Tier <span class="hint">(lower tier = better)</span></label>
+    <div class="slider-row">
+      <input type="range" id="w-canon" min="0" max="100" value="20">
+      <span class="slider-val" id="v-canon">20</span>
+    </div>
+  </div>
+</div>
+
+<div class="toolbar">
+  <label>Show
+    <select id="topN">
+      <option value="25">25</option>
+      <option value="50" selected>50</option>
+      <option value="100">100</option>
+      <option value="all">All</option>
+    </select>
+  </label>
+  <input type="text" class="search-box" id="search" placeholder="Filter by title or author…">
+  <span class="book-count" id="bookCount"></span>
+</div>
+
+<table>
+  <thead>
+    <tr id="headerRow"></tr>
+  </thead>
+  <tbody id="tbody"></tbody>
+</table>
+
+<script>
+const COLUMNS = [
+  { key: 'rank',         label: '#',           numeric: true },
+  { key: 'title',        label: 'Title',       numeric: false },
+  { key: 'author',       label: 'Author',      numeric: false },
+  { key: 'year_published', label: 'Year',      numeric: true },
+  { key: 'canon_tier',   label: 'Canon',       numeric: true },
+  { key: 'readability',  label: 'Readability',  numeric: true },
+  { key: 'pages',        label: 'Pages',       numeric: true },
+  { key: 'primary_type', label: 'Type',        numeric: false },
+  { key: 'score',        label: 'Score',       numeric: true },
+];
+
+let allBooks = [];
+let sortCol = 'score';
+let sortAsc = true; // for score, lower = better (best rank)
+let currentSort = { col: 'score', asc: true };
+
+const $ = id => document.getElementById(id);
+
+// Parse canon tier number from "1 - Undisputed peak" → 1
+function parseCanon(val) {
+  if (val == null || val === '') return NaN;
+  const n = parseInt(val, 10);
+  return isNaN(n) ? NaN : n;
+}
+
+function loadData() {
+  fetch('books.csv')
+    .then(r => r.text())
+    .then(text => {
+      const result = Papa.parse(text, {
+        header: true,
+        skipEmptyLines: true,
+        transformHeader: h => h.trim(),
+      });
+      allBooks = result.data.map(row => {
+        const clean = {};
+        for (const k of Object.keys(row)) clean[k.trim()] = (row[k] || '').trim();
+        return {
+          raw: clean,
+          title: clean.title || '',
+          author: clean.author || '',
+          year_published: parseFloat(clean.year_published) || NaN,
+          canon_tier: parseCanon(clean.canon_tier),
+          readability: parseFloat(clean.readability) || NaN,
+          pages: parseFloat(clean.pages) || NaN,
+          primary_type: clean.primary_type || clean.type || '',
+        };
+      }).filter(b => b.title);
+
+      $('bookCount').textContent = allBooks.length + ' books loaded';
+      buildHeader();
+      rank();
+    });
+}
+
+function getWeights() {
+  return {
+    readability: +$('w-readability').value,
+    length:      +$('w-length').value,
+    recency:     +$('w-recency').value,
+    canon:       +$('w-canon').value,
+  };
+}
+
+// Linear normalization: returns 0 (best) to 1 (worst)
+function normalize(values) {
+  const valid = values.filter(v => !isNaN(v));
+  if (valid.length === 0) return values.map(() => NaN);
+  const min = Math.min(...valid);
+  const max = Math.max(...valid);
+  if (max === min) return values.map(v => isNaN(v) ? NaN : 0.5);
+  return values.map(v => isNaN(v) ? NaN : (v - min) / (max - min));
+}
+
+function rank() {
+  const w = getWeights();
+  const totalWeight = w.readability + w.length + w.recency + w.canon;
+
+  // Extract raw arrays
+  const readVals = allBooks.map(b => b.readability);      // lower better
+  const pageVals = allBooks.map(b => b.pages);             // lower better
+  const yearVals = allBooks.map(b => b.year_published);    // higher better → invert
+  const canonVals = allBooks.map(b => b.canon_tier);       // lower better
+
+  const normRead  = normalize(readVals);
+  const normPages = normalize(pageVals);
+  const normYear  = normalize(yearVals).map(v => isNaN(v) ? NaN : 1 - v); // invert: recent = low score
+  const normCanon = normalize(canonVals);
+
+  allBooks.forEach((book, i) => {
+    if (totalWeight === 0) { book.score = 0.5; return; }
+    let wSum = 0, vSum = 0;
+    const dims = [
+      { norm: normRead[i],  weight: w.readability },
+      { norm: normPages[i], weight: w.length },
+      { norm: normYear[i],  weight: w.recency },
+      { norm: normCanon[i], weight: w.canon },
+    ];
+    for (const d of dims) {
+      if (!isNaN(d.norm)) { wSum += d.weight; vSum += d.norm * d.weight; }
+    }
+    book.score = wSum > 0 ? vSum / wSum : 0.5;
+  });
+
+  renderTable();
+}
+
+function buildHeader() {
+  const tr = $('headerRow');
+  tr.innerHTML = '';
+  for (const col of COLUMNS) {
+    const th = document.createElement('th');
+    th.textContent = col.label;
+    if (col.numeric) th.className = 'num';
+    if (col.key === 'primary_type' || col.key === 'author') th.classList.add('hide-mobile');
+    const arrow = document.createElement('span');
+    arrow.className = 'arrow';
+    th.appendChild(arrow);
+    th.addEventListener('click', () => {
+      if (currentSort.col === col.key) {
+        currentSort.asc = !currentSort.asc;
+      } else {
+        currentSort.col = col.key;
+        currentSort.asc = col.key === 'score' ? true : (col.numeric ? true : true);
+      }
+      renderTable();
+    });
+    tr.appendChild(th);
+  }
+}
+
+function renderTable() {
+  const query = $('search').value.toLowerCase();
+  let filtered = allBooks;
+  if (query) {
+    filtered = allBooks.filter(b =>
+      b.title.toLowerCase().includes(query) ||
+      b.author.toLowerCase().includes(query)
+    );
+  }
+
+  // Sort
+  const col = currentSort.col;
+  const asc = currentSort.asc;
+  const sorted = [...filtered].sort((a, b) => {
+    let va, vb;
+    if (col === 'score') { va = a.score; vb = b.score; }
+    else if (col === 'rank') { va = a.score; vb = b.score; }
+    else if (col === 'title') { va = a.title.toLowerCase(); vb = b.title.toLowerCase(); }
+    else if (col === 'author') { va = a.author.toLowerCase(); vb = b.author.toLowerCase(); }
+    else if (col === 'primary_type') { va = a.primary_type.toLowerCase(); vb = b.primary_type.toLowerCase(); }
+    else if (col === 'year_published') { va = a.year_published || -9999; vb = b.year_published || -9999; }
+    else if (col === 'canon_tier') { va = a.canon_tier || 99; vb = b.canon_tier || 99; }
+    else if (col === 'readability') { va = a.readability || 99; vb = b.readability || 99; }
+    else if (col === 'pages') { va = a.pages || 99999; vb = b.pages || 99999; }
+    else { va = 0; vb = 0; }
+    if (va < vb) return asc ? -1 : 1;
+    if (va > vb) return asc ? 1 : -1;
+    return 0;
+  });
+
+  // Update header arrows
+  const ths = $('headerRow').querySelectorAll('th');
+  COLUMNS.forEach((c, i) => {
+    const arrow = ths[i].querySelector('.arrow');
+    arrow.textContent = currentSort.col === c.key ? (currentSort.asc ? ' ▲' : ' ▼') : '';
+  });
+
+  // Limit
+  const topVal = $('topN').value;
+  const limit = topVal === 'all' ? sorted.length : parseInt(topVal, 10);
+  const shown = sorted.slice(0, limit);
+
+  const tbody = $('tbody');
+  tbody.innerHTML = '';
+
+  shown.forEach((book, i) => {
+    const tr = document.createElement('tr');
+    for (const col of COLUMNS) {
+      const td = document.createElement('td');
+      if (col.numeric) td.className = 'num';
+      if (col.key === 'primary_type' || col.key === 'author') td.classList.add('hide-mobile');
+
+      switch (col.key) {
+        case 'rank':
+          td.textContent = i + 1;
+          break;
+        case 'title':
+          td.textContent = book.title;
+          break;
+        case 'author':
+          td.textContent = book.author;
+          break;
+        case 'year_published':
+          td.textContent = isNaN(book.year_published) ? '—' :
+            (book.year_published < 0 ? Math.abs(book.year_published) + ' BC' : book.year_published);
+          break;
+        case 'canon_tier':
+          td.textContent = isNaN(book.canon_tier) ? '—' : book.canon_tier;
+          break;
+        case 'readability':
+          td.textContent = isNaN(book.readability) ? '—' : book.readability;
+          break;
+        case 'pages':
+          td.textContent = isNaN(book.pages) ? '—' : book.pages.toLocaleString();
+          break;
+        case 'primary_type':
+          td.textContent = book.primary_type;
+          break;
+        case 'score':
+          const pct = Math.round((1 - book.score) * 100);
+          const bar = document.createElement('span');
+          bar.className = 'score-bar';
+          bar.style.width = pct * 0.6 + 'px';
+          td.appendChild(bar);
+          td.appendChild(document.createTextNode(pct));
+          break;
+      }
+      tr.appendChild(td);
+    }
+    tbody.appendChild(tr);
+  });
+}
+
+// Wire up sliders
+['readability', 'length', 'recency', 'canon'].forEach(dim => {
+  const slider = $('w-' + dim);
+  const val = $('v-' + dim);
+  slider.addEventListener('input', () => { val.textContent = slider.value; rank(); });
+});
+
+$('topN').addEventListener('change', renderTable);
+$('search').addEventListener('input', renderTable);
+
+loadData();
+</script>
+</body>
+</html>
