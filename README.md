@@ -1,6 +1,6 @@
 # Book Chooser
 
-Built entirely by Claude (Anthropic) — both the code and the book ranking dataset.
+Built entirely by Claude Code (Anthropic) — both the code and the book ranking dataset.
 
 A place to find books you might want to read, filtering on key characteristics. 
 
