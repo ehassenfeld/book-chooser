@@ -238,6 +238,45 @@ tr td.has-tip .tip { left: 0; right: auto; }
 }
 .filter-tag .remove:hover { color: #333; }
 
+.avail-btn {
+  font-size: 0.8rem;
+  padding: 0.35rem 0.8rem;
+  border: 1px solid #333;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  font-weight: 600;
+  color: #333;
+}
+.avail-btn:hover { background: #333; color: #fff; }
+.avail-btn:disabled { opacity: 0.5; cursor: default; background: #eee; color: #999; border-color: #ccc; }
+
+.avail-status {
+  font-size: 0.75rem;
+  color: #888;
+  margin-bottom: 0.5rem;
+}
+
+.avail-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+.avail-badge.available { background: #d4edda; color: #155724; }
+.avail-badge.holdable { background: #fff3cd; color: #856404; }
+.avail-badge.unavailable { background: #f0f0f0; color: #999; }
+.avail-badge.unchecked { background: #fff; color: #ccc; font-weight: 400; }
+
+.amazon-link {
+  font-size: 0.7rem;
+  color: #06c;
+  text-decoration: none;
+}
+.amazon-link:hover { text-decoration: underline; }
+
 @media (max-width: 700px) {
   body { padding: 0.75rem; }
   .controls { grid-template-columns: 1fr; }
@@ -289,17 +328,19 @@ tr td.has-tip .tip { left: 0; right: auto; }
 <div class="toolbar">
   <label>Show
     <select id="topN">
-      <option value="25">25</option>
-      <option value="50" selected>50</option>
+      <option value="25" selected>25</option>
+      <option value="50">50</option>
       <option value="100">100</option>
       <option value="all">All</option>
     </select>
   </label>
   <input type="text" class="search-box" id="search" placeholder="Filter by title or author…">
   <label><input type="checkbox" id="hideRead"> Hide read</label>
+  <button class="avail-btn" id="availBtn" onclick="checkAllAvailability()">Check Availability</button>
   <span class="active-filters" id="activeFilters"></span>
   <span class="book-count" id="bookCount"></span>
 </div>
+<p class="avail-status" id="availStatus">Press "Check Availability" to look up Berkeley Public Library &amp; Amazon availability.</p>
 
 <table>
   <thead>
@@ -321,6 +362,9 @@ const COLUMNS = [
   { key: 'tone',         label: 'Tone',        numeric: false, filterable: true },
   { key: 'scope',        label: 'Scope',       numeric: false, filterable: true },
   { key: 'language',     label: 'Language',    numeric: false, filterable: true },
+  { key: 'libby_ebook',  label: 'Libby Ebook', numeric: false, filterable: true },
+  { key: 'libby_audio',  label: 'Libby Audio', numeric: false, filterable: true },
+  { key: 'whispersync',  label: 'Amazon',      numeric: false },
   { key: 'score',        label: 'Match',       numeric: false },
 ];
 
@@ -330,12 +374,22 @@ let sortAsc = true; // for score, lower = better (best rank)
 let currentSort = { col: 'score', asc: true };
 let activeFilters = {}; // { colKey: 'value', ... }
 let openDropdown = null; // currently open dropdown element
+let libbyCache = {}; // title -> { ebook: {status, detail}, audio: {status, detail} }
+let availChecked = false;
 
 const $ = id => document.getElementById(id);
 
 function filterValue(book, key) {
   if (key === 'canon_tier') return isNaN(book.canon_tier) ? '' : String(book.canon_tier);
   if (key === 'readability') return isNaN(book.readability) ? '' : String(book.readability);
+  if (key === 'libby_ebook') {
+    const info = libbyCache[book.title.toLowerCase()];
+    return info ? info.ebook.status : '';
+  }
+  if (key === 'libby_audio') {
+    const info = libbyCache[book.title.toLowerCase()];
+    return info ? info.audio.status : '';
+  }
   return book[key] || '';
 }
 
@@ -412,6 +466,115 @@ document.addEventListener('click', (e) => {
   }
 });
 
+// --- Availability integration ---
+const LIBBY_API = 'https://thunder.api.overdrive.com/v2/libraries/berkeleypubliclibrary/media';
+
+async function checkLibby(title, author) {
+  const cacheKey = title.toLowerCase();
+  if (libbyCache[cacheKey]) return libbyCache[cacheKey];
+
+  const result = { ebook: { status: 'unavailable', detail: 'Not in catalog' }, audio: { status: 'unavailable', detail: 'Not in catalog' } };
+
+  try {
+    const query = encodeURIComponent(title + ' ' + author.split(',')[0]);
+    const resp = await fetch(LIBBY_API + '?query=' + query + '&limit=10');
+    if (!resp.ok) throw new Error('API error');
+    const data = await resp.json();
+
+    if (data.items && data.items.length > 0) {
+      const titleLower = title.toLowerCase();
+      for (const item of data.items) {
+        const t = (item.title || '').toLowerCase();
+        const isMatch = t === titleLower || t.startsWith(titleLower) || titleLower.startsWith(t);
+        if (!isMatch) continue;
+
+        const fmt = (item.type && item.type.id) ? item.type.id : '';
+        const key = fmt === 'ebook' ? 'ebook' : (fmt === 'audiobook' ? 'audio' : null);
+        if (!key) continue;
+        if (result[key].status !== 'unavailable' || result[key].detail !== 'Not in catalog') continue;
+
+        if (item.isAvailable) {
+          result[key] = { status: 'available', detail: item.availableCopies + ' of ' + item.ownedCopies + ' available' };
+        } else if (item.ownedCopies > 0) {
+          const wait = item.estimatedWaitDays ? '~' + item.estimatedWaitDays + 'd' : '';
+          const holds = item.holdsCount ? item.holdsCount + ' holds' : '';
+          result[key] = { status: 'holdable', detail: [holds, wait].filter(Boolean).join(', ') };
+        }
+      }
+    }
+  } catch (e) {
+    result.ebook = { status: 'unavailable', detail: '—' };
+    result.audio = { status: 'unavailable', detail: '—' };
+  }
+
+  libbyCache[cacheKey] = result;
+  return result;
+}
+
+function getVisibleBooks() {
+  const query = $('search').value.toLowerCase();
+  let filtered = allBooks;
+  if ($('hideRead').checked) filtered = filtered.filter(b => !b.read);
+  if (query) filtered = filtered.filter(b => b.title.toLowerCase().includes(query) || b.author.toLowerCase().includes(query));
+  for (const [colKey, val] of Object.entries(activeFilters)) {
+    if (val) filtered = filtered.filter(b => filterValue(b, colKey) === val);
+  }
+  return [...filtered].sort((a, b) => a.score - b.score);
+}
+
+async function checkAllAvailability() {
+  const btn = $('availBtn');
+  btn.disabled = true;
+  btn.textContent = 'Checking…';
+  const statusEl = $('availStatus');
+  statusEl.textContent = 'Checking Berkeley Public Library availability…';
+  const batchSize = 3;
+  const delay = ms => new Promise(r => setTimeout(r, ms));
+
+  // Only check currently displayed books (respects filters, sort, and show-N limit)
+  const visible = getVisibleBooks();
+  const topVal = $('topN').value;
+  const limit = topVal === 'all' ? visible.length : parseInt(topVal, 10);
+  const toCheck = visible.slice(0, limit);
+
+  let checked = 0;
+  const total = toCheck.length;
+
+  for (let i = 0; i < total; i += batchSize) {
+    const batch = toCheck.slice(i, i + batchSize);
+    await Promise.all(batch.map(b => checkLibby(b.title, b.author)));
+    checked = Math.min(i + batchSize, total);
+    statusEl.textContent = 'Checking… ' + checked + '/' + total;
+    renderTable();
+    if (i + batchSize < total) await delay(300);
+  }
+
+  availChecked = true;
+  const results = toCheck.map(b => libbyCache[b.title.toLowerCase()]).filter(Boolean);
+  const ebookAvail = results.filter(v => v.ebook.status === 'available').length;
+  const ebookHold = results.filter(v => v.ebook.status === 'holdable').length;
+  const audioAvail = results.filter(v => v.audio.status === 'available').length;
+  const audioHold = results.filter(v => v.audio.status === 'holdable').length;
+  statusEl.textContent = 'Checked ' + total + ' books — Ebooks: ' + ebookAvail + ' available, ' + ebookHold + ' on hold. Audiobooks: ' + audioAvail + ' available, ' + audioHold + ' on hold.';
+  btn.textContent = 'Re-check';
+  btn.disabled = false;
+}
+
+function makeBadge(info) {
+  const badge = document.createElement('span');
+  badge.className = 'avail-badge';
+  if (!info) { badge.classList.add('unchecked'); badge.textContent = '—'; }
+  else if (info.status === 'available') { badge.classList.add('available'); badge.textContent = 'Yes'; badge.title = info.detail; }
+  else if (info.status === 'holdable') { badge.classList.add('holdable'); badge.textContent = 'Hold'; badge.title = info.detail; }
+  else { badge.classList.add('unavailable'); badge.textContent = 'No'; badge.title = info.detail; }
+  return badge;
+}
+
+function amazonSearchUrl(title, author) {
+  const q = encodeURIComponent(title + ' ' + author.split(',')[0]);
+  return 'https://www.amazon.com/s?k=' + q + '&i=digital-text&rh=p_n_feature_three_browse-bin%3A6577679011';
+}
+
 // Parse canon tier number from "1 - Undisputed peak" → 1
 function parseCanon(val) {
   if (val == null || val === '') return NaN;
@@ -445,6 +608,7 @@ function loadData() {
           language: clean.language || '',
           description: clean.description || '',
           read: (clean.read || '').trim().toLowerCase() === 'yes',
+          flat_prose: (clean.flat_prose || '').trim().toLowerCase() === 'yes',
         };
       }).filter(b => b.title);
 
@@ -550,7 +714,7 @@ function buildHeader() {
       th.appendChild(hint);
     }
     if (col.numeric) th.className = 'num';
-    if (col.key === 'primary_type' || col.key === 'author' || col.key === 'tone' || col.key === 'scope' || col.key === 'language') th.classList.add('hide-mobile');
+    if (['primary_type','author','tone','scope','language','libby_ebook','libby_audio','whispersync'].includes(col.key)) th.classList.add('hide-mobile');
     const arrow = document.createElement('span');
     arrow.className = 'arrow';
     th.appendChild(arrow);
@@ -637,6 +801,14 @@ function renderTable() {
     else if (col === 'canon_tier') { va = a.canon_tier || 99; vb = b.canon_tier || 99; }
     else if (col === 'readability') { va = a.readability || 99; vb = b.readability || 99; }
     else if (col === 'pages') { va = a.pages || 99999; vb = b.pages || 99999; }
+    else if (col === 'libby_ebook' || col === 'libby_audio') {
+      const fmt = col === 'libby_ebook' ? 'ebook' : 'audio';
+      const order = { available: 0, holdable: 1, unavailable: 2 };
+      const ca = libbyCache[a.title.toLowerCase()];
+      const cb = libbyCache[b.title.toLowerCase()];
+      va = ca ? (order[ca[fmt].status] ?? 3) : 3;
+      vb = cb ? (order[cb[fmt].status] ?? 3) : 3;
+    }
     else { va = 0; vb = 0; }
     if (va < vb) return asc ? -1 : 1;
     if (va > vb) return asc ? 1 : -1;
@@ -665,7 +837,7 @@ function renderTable() {
       if (col.hide) continue;
       const td = document.createElement('td');
       if (col.numeric) td.className = 'num';
-      if (col.key === 'primary_type' || col.key === 'author' || col.key === 'tone' || col.key === 'scope' || col.key === 'language') td.classList.add('hide-mobile');
+      if (['primary_type','author','tone','scope','language','libby_ebook','libby_audio','whispersync'].includes(col.key)) td.classList.add('hide-mobile');
 
       switch (col.key) {
         case 'rank':
@@ -692,7 +864,15 @@ function renderTable() {
           td.textContent = isNaN(book.canon_tier) ? '—' : book.canon_tier;
           break;
         case 'readability':
-          td.textContent = isNaN(book.readability) ? '—' : book.readability;
+          if (isNaN(book.readability)) { td.textContent = '—'; }
+          else if (book.flat_prose) {
+            td.textContent = book.readability;
+            const ast = document.createElement('span');
+            ast.textContent = '*';
+            ast.title = 'Affect-flat / autofiction-adjacent prose style';
+            ast.style.color = '#c0392b';
+            td.appendChild(ast);
+          } else { td.textContent = book.readability; }
           break;
         case 'pages':
           td.textContent = isNaN(book.pages) ? '—' : book.pages.toLocaleString();
@@ -709,6 +889,26 @@ function renderTable() {
         case 'language':
           td.textContent = book.language;
           break;
+        case 'libby_ebook': {
+          const info = libbyCache[book.title.toLowerCase()];
+          td.appendChild(makeBadge(info ? info.ebook : null));
+          break;
+        }
+        case 'libby_audio': {
+          const info = libbyCache[book.title.toLowerCase()];
+          td.appendChild(makeBadge(info ? info.audio : null));
+          break;
+        }
+        case 'whispersync': {
+          const link = document.createElement('a');
+          link.className = 'amazon-link';
+          link.href = amazonSearchUrl(book.title, book.author);
+          link.target = '_blank';
+          link.rel = 'noopener';
+          link.textContent = 'Search';
+          td.appendChild(link);
+          break;
+        }
         case 'score':
           const pct = Math.round((1 - book.score) * 100);
           const bar = document.createElement('span');
