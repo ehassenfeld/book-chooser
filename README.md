@@ -1,15 +1,15 @@
 # Book Chooser
 
-Built entirely by Claude Code (Anthropic) — both the code and the book ranking dataset.
+Built entirely by Claude Code (Anthropic) — both the code and the dataset.
 
-A place to find books you might want to read, filtering on key characteristics. 
+A tool for finding your next read from ~1,200 works of literary fiction, filtering on key characteristics.
 
 - **Readability** — how easy the book is to read (1 = easiest, 5 = hardest)
 - **Length** — page count (fewer = better)
 - **Recency** — year published (more recent = better)
 - **Canon tier** — how canonical the book is (1 = undisputed peak, 9 = lowest)
 
-Adjust the sliders to change how much each dimension matters. The table re-ranks in real time. You can also search by title or author and sort by any column.
+Adjust the sliders to change how much each dimension matters. The table re-sorts in real time. You can also search by title or author, filter by column, and sort by any column.
 
 ## Data
 
@@ -58,9 +58,9 @@ All metadata — canon tier, primary type, tone, scope, readability, page count,
 
 Each book is tagged with a dominant reading experience: Psychological Portrait, Social World, Moral Crucible, Interiority, Dreamlike, Compressed, Epic/Generational, Satirical, Formal/Experimental, or Fable/Allegory.
 
-## How scoring works
+## How matching works
 
-The final score is a weighted average of four dimensions (any slider set to 0 disables that dimension). Books missing a value are scored on the remaining dimensions. Displayed score is 0–100 where 100 is best.
+Each book gets a match score based on a weighted average of four dimensions (any slider set to 0 disables that dimension). Books missing a value are scored on the remaining dimensions. The match column shows a visual bar — fuller means a stronger match for your current slider settings.
 
 **Length** and **recency** use log-linear scaling to capture diminishing returns:
 
