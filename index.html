@@ -323,6 +323,13 @@ tr td.has-tip .tip { left: 0; right: auto; }
       <span class="slider-val" id="v-canon">20</span>
     </div>
   </div>
+  <div class="slider-group">
+    <label>Conventionality <span class="pct" id="pct-conventionality"></span> <span class="hint">(higher = more traditional narration)</span></label>
+    <div class="slider-row">
+      <input type="range" id="w-conventionality" min="0" max="100" value="0">
+      <span class="slider-val" id="v-conventionality">0</span>
+    </div>
+  </div>
 </div>
 
 <div class="toolbar">
@@ -361,6 +368,7 @@ const COLUMNS = [
   { key: 'primary_type', label: 'Type',        numeric: false, filterable: true },
   { key: 'tone',         label: 'Tone',        numeric: false, filterable: true },
   { key: 'scope',        label: 'Scope',       numeric: false, filterable: true },
+  { key: 'conventionality', label: 'Conv.',     numeric: true,  hint: '(1-10, 10 = most traditional)', filterable: true },
   { key: 'language',     label: 'Language',    numeric: false, filterable: true },
   { key: 'libby_ebook',  label: 'Libby Ebook', numeric: false, filterable: true },
   { key: 'libby_audio',  label: 'Libby Audio', numeric: false, filterable: true },
@@ -382,6 +390,7 @@ const $ = id => document.getElementById(id);
 function filterValue(book, key) {
   if (key === 'canon_tier') return isNaN(book.canon_tier) ? '' : String(book.canon_tier);
   if (key === 'readability') return isNaN(book.readability) ? '' : String(book.readability);
+  if (key === 'conventionality') return isNaN(book.conventionality) ? '' : String(book.conventionality);
   if (key === 'libby_ebook') {
     const info = libbyCache[book.title.toLowerCase()];
     return info ? info.ebook.status : '';
@@ -607,6 +616,7 @@ function loadData() {
           scope: clean.scope || '',
           language: clean.language || '',
           description: clean.description || '',
+          conventionality: parseFloat(clean.conventionality) || NaN,
           read: (clean.read || '').trim().toLowerCase() === 'yes',
           flat_prose: (clean.flat_prose || '').trim().toLowerCase() === 'yes',
         };
@@ -628,6 +638,7 @@ function getWeights() {
     length:      +$('w-length').value,
     recency:     +$('w-recency').value,
     canon:       +$('w-canon').value,
+    conventionality: +$('w-conventionality').value,
   };
 }
 
@@ -668,18 +679,21 @@ function normalizePages(values) {
 
 function rank() {
   const w = getWeights();
-  const totalWeight = w.readability + w.length + w.recency + w.canon;
+  const totalWeight = w.readability + w.length + w.recency + w.canon + w.conventionality;
 
   // Extract raw arrays
   const readVals = allBooks.map(b => b.readability);      // lower better
   const pageVals = allBooks.map(b => b.pages);             // lower better
   const yearVals = allBooks.map(b => b.year_published);    // higher better → invert
   const canonVals = allBooks.map(b => b.canon_tier);       // lower better
+  const convVals = allBooks.map(b => b.conventionality);   // higher better → invert
 
   const normRead  = normalize(readVals);
   const normPages = normalizePages(pageVals);
   const normYear  = normalizeYear(yearVals);
   const normCanon = normalize(canonVals);
+  // Conventionality: 10 = most conventional (best). Invert so 10→0, 1→1.
+  const normConv  = normalize(convVals.map(v => isNaN(v) ? NaN : -v));
 
   allBooks.forEach((book, i) => {
     if (totalWeight === 0) { book.score = 0.5; return; }
@@ -689,6 +703,7 @@ function rank() {
       { norm: normPages[i], weight: w.length },
       { norm: normYear[i],  weight: w.recency },
       { norm: normCanon[i], weight: w.canon },
+      { norm: normConv[i],  weight: w.conventionality },
     ];
     for (const d of dims) {
       if (!isNaN(d.norm)) { wSum += d.weight; vSum += d.norm * d.weight; }
@@ -714,7 +729,7 @@ function buildHeader() {
       th.appendChild(hint);
     }
     if (col.numeric) th.className = 'num';
-    if (['primary_type','author','tone','scope','language','libby_ebook','libby_audio','whispersync'].includes(col.key)) th.classList.add('hide-mobile');
+    if (['primary_type','author','tone','scope','conventionality','language','libby_ebook','libby_audio','whispersync'].includes(col.key)) th.classList.add('hide-mobile');
     const arrow = document.createElement('span');
     arrow.className = 'arrow';
     th.appendChild(arrow);
@@ -800,6 +815,7 @@ function renderTable() {
     else if (col === 'year_published') { va = a.year_published || -9999; vb = b.year_published || -9999; }
     else if (col === 'canon_tier') { va = a.canon_tier || 99; vb = b.canon_tier || 99; }
     else if (col === 'readability') { va = a.readability || 99; vb = b.readability || 99; }
+    else if (col === 'conventionality') { va = a.conventionality || 99; vb = b.conventionality || 99; }
     else if (col === 'pages') { va = a.pages || 99999; vb = b.pages || 99999; }
     else if (col === 'libby_ebook' || col === 'libby_audio') {
       const fmt = col === 'libby_ebook' ? 'ebook' : 'audio';
@@ -837,7 +853,7 @@ function renderTable() {
       if (col.hide) continue;
       const td = document.createElement('td');
       if (col.numeric) td.className = 'num';
-      if (['primary_type','author','tone','scope','language','libby_ebook','libby_audio','whispersync'].includes(col.key)) td.classList.add('hide-mobile');
+      if (['primary_type','author','tone','scope','conventionality','language','libby_ebook','libby_audio','whispersync'].includes(col.key)) td.classList.add('hide-mobile');
 
       switch (col.key) {
         case 'rank':
@@ -886,6 +902,9 @@ function renderTable() {
         case 'scope':
           td.textContent = book.scope;
           break;
+        case 'conventionality':
+          td.textContent = isNaN(book.conventionality) ? '—' : book.conventionality;
+          break;
         case 'language':
           td.textContent = book.language;
           break;
@@ -928,8 +947,8 @@ function renderTable() {
 
 function updatePcts() {
   const w = getWeights();
-  const total = w.readability + w.length + w.recency + w.canon;
-  const dims = ['readability', 'length', 'recency', 'canon'];
+  const total = w.readability + w.length + w.recency + w.canon + w.conventionality;
+  const dims = ['readability', 'length', 'recency', 'canon', 'conventionality'];
   dims.forEach(d => {
     const pctEl = $('pct-' + d);
     if (total === 0) {
@@ -941,7 +960,7 @@ function updatePcts() {
 }
 
 // Wire up sliders
-['readability', 'length', 'recency', 'canon'].forEach(dim => {
+['readability', 'length', 'recency', 'canon', 'conventionality'].forEach(dim => {
   const slider = $('w-' + dim);
   const val = $('v-' + dim);
   slider.addEventListener('input', () => { val.textContent = slider.value; updatePcts(); rank(); });
