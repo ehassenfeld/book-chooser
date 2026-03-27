@@ -2,12 +2,13 @@
 
 Built entirely by Claude Code (Anthropic) — both the code and the dataset.
 
-A tool for finding your next read from ~1,200 works of literary fiction, filtering on key characteristics.
+A tool for finding your next read from ~1,100 works of literary fiction, filtering on key characteristics.
 
-- **Readability** — how easy the book is to read (1 = easiest, 5 = hardest)
+- **Readability** — how easy the book is to read (1 = easiest, 10 = hardest)
 - **Length** — page count (fewer = better)
 - **Recency** — year published (more recent = better)
 - **Canon tier** — how canonical the book is (1 = undisputed peak, 9 = lowest)
+- **Conventionality** — how traditionally narrated (1 = radically experimental, 10 = straightforward storytelling)
 
 Adjust the sliders to change how much each dimension matters. The table re-sorts in real time. You can also search by title or author, filter by column, and sort by any column.
 
@@ -15,7 +16,7 @@ Adjust the sliders to change how much each dimension matters. The table re-sorts
 
 **Note: all data is currently from Claude and unchecked. There are likely errors.**
 
-`books.csv` contains ~1,200 works of literary fiction with columns for title, author, year published, canon tier, primary type, tone, scope, readability, pages, and language. The app parses whatever columns exist dynamically — adding new columns won't break anything.
+`books.csv` contains ~1,100 works of literary fiction with columns for title, author, year published, canon tier, primary type, tone, scope, readability, conventionality, pages, and language. The app parses whatever columns exist dynamically — adding new columns won't break anything.
 
 ### Where the list came from
 
@@ -48,9 +49,8 @@ The list deliberately includes more books per year for recent decades than for e
 
 - Pre-1900 literature is represented by the established canon — the books that have survived critical reassessment over a century or more. A handful per decade.
 - The 20th century gets broader coverage, roughly scaling up as you approach the present, because more books remain in print and in critical conversation.
-- 2023–2025 alone account for ~150 books, compared to maybe 20 for the entire 1800s. This is intentional.
-- The reason is practical: if you're choosing what to read next, you're more likely to want something from the last few years than from 1847. Bookstores stock recent books. Friends are reading recent books. Reviews are fresh. The list reflects that by giving recent years more slots, even though most of those books will not endure the way tier 1–3 books have.
-- The tier system handles the quality signal — a tier 8 book from 2024 is explicitly marked as "possible" canon, not proven. The overweighting is in coverage, not in implied quality.
+- 2023–2025 have ~15 books each — roughly the same rate as 2020–2021 — after pruning the most speculative entries (tier 9 and weaker tier 8) to avoid recency bias in the dataset.
+- The tier system handles the quality signal — a tier 8 book from 2024 is explicitly marked as "possible" canon, not proven.
 
 All metadata — canon tier, primary type, tone, scope, readability, page count, and original language — was assigned by Claude based on critical consensus and knowledge of each book. Canon tiers 1–7 reflect relative critical standing; tiers 8–9 are recent books too new to assess. Readability (1–5) measures prose difficulty, not emotional difficulty or plot complexity. About a third of the primary type assignments were hand-verified; the rest were assigned heuristically.
 
@@ -60,14 +60,14 @@ Each book is tagged with a dominant reading experience: Psychological Portrait, 
 
 ## How matching works
 
-Each book gets a match score based on a weighted average of four dimensions (any slider set to 0 disables that dimension). Books missing a value are scored on the remaining dimensions. The match column shows a visual bar — fuller means a stronger match for your current slider settings.
+Each book gets a match score based on a weighted average of five dimensions (any slider set to 0 disables that dimension). Books missing a value are scored on the remaining dimensions. The match column shows a visual bar — fuller means a stronger match for your current slider settings.
 
 **Length** and **recency** use log-linear scaling to capture diminishing returns:
 
 - **Length**: Log scale from 150 to 900 pages. Books ≤150 pages get the best score; ≥900 pages get the worst. The difference between 150 and 300 pages matters much more than 700 vs 850.
 - **Recency**: Log scale on distance from 2022. Recent books (2020 vs 1990) are differentiated much more than older ones (1750 vs 1720). Anything before 1700 gets the same worst score.
 
-**Readability** (1–5) and **canon tier** (1–9) use simple linear min-max normalization across the dataset.
+**Readability** (1–10), **canon tier** (1–9), and **conventionality** (1–10) use simple linear min-max normalization across the dataset.
 
 ## Setup
 
