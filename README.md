@@ -8,7 +8,7 @@ A tool for finding your next read from ~1,100 works of literary fiction, filteri
 - **Length** — page count (fewer = better)
 - **Recency** — year published (more recent = better)
 - **Canon tier** — how canonical the book is (1 = undisputed peak, 9 = lowest)
-- **Conventionality** — how traditionally narrated (1 = radically experimental, 10 = straightforward storytelling)
+- **Conventionality** — how traditionally narrated (1 = most conventional, 10 = most experimental)
 
 Adjust the sliders to change how much each dimension matters. The table re-sorts in real time. You can also search by title or author, filter by column, and sort by any column.
 

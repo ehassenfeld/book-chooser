@@ -13,7 +13,7 @@ body {
   color: #1a1a1a;
   background: #fafafa;
   padding: 1.5rem;
-  max-width: 1200px;
+  max-width: 1600px;
   margin: 0 auto;
   line-height: 1.5;
 }
@@ -342,7 +342,7 @@ tr td.has-tip .tip { left: 0; right: auto; }
   </div>
   <div class="slider-group">
     <label>Conventionality <span class="pct" id="pct-conventionality"></span></label>
-    <span class="hint">higher = more traditional</span>
+    <span class="hint">higher = more conventional</span>
     <div class="slider-row">
       <input type="range" id="w-conventionality" min="0" max="100" value="0">
       <span class="slider-val" id="v-conventionality">0</span>
@@ -388,7 +388,7 @@ const COLUMNS = [
   { key: 'primary_type', label: 'Type',        numeric: false, filterable: true },
   { key: 'tone',         label: 'Tone',        numeric: false, filterable: true },
   { key: 'scope',        label: 'Scope',       numeric: false, filterable: true },
-  { key: 'conventionality', label: 'Conv.',     numeric: true,  hint: '(1-10, 10 = most traditional)', filterable: true },
+  { key: 'conventionality', label: 'Conv.',     numeric: true,  hint: '(1 = most conventional)', filterable: true },
   { key: 'language',     label: 'Language',    numeric: false, filterable: true },
   { key: 'libby_ebook',  label: 'Libby Ebook', numeric: false, filterable: true },
   { key: 'libby_audio',  label: 'Libby Audio', numeric: false, filterable: true },
@@ -706,14 +706,14 @@ function rank() {
   const pageVals = allBooks.map(b => b.pages);             // lower better
   const yearVals = allBooks.map(b => b.year_published);    // higher better → invert
   const canonVals = allBooks.map(b => b.canon_tier);       // lower better
-  const convVals = allBooks.map(b => b.conventionality);   // higher better → invert
+  const convVals = allBooks.map(b => b.conventionality);   // lower better (1 = most conventional)
 
   const normRead  = normalize(readVals);
   const normPages = normalizePages(pageVals);
   const normYear  = normalizeYear(yearVals);
   const normCanon = normalize(canonVals);
-  // Conventionality: 10 = most conventional (best). Invert so 10→0, 1→1.
-  const normConv  = normalize(convVals.map(v => isNaN(v) ? NaN : -v));
+  // Conventionality: 1 = most conventional (best). Same direction as readability/canon.
+  const normConv  = normalize(convVals);
 
   allBooks.forEach((book, i) => {
     if (totalWeight === 0) { book.score = 0.5; return; }
