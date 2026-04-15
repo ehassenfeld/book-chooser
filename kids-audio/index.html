@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audiobook Chooser</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: #1a1a1a;
+  background: #fafafa;
+  padding: 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  line-height: 1.5;
+}
+
+h1 { font-size: 1.5rem; font-weight: 600; margin-bottom: 0.25rem; }
+.subtitle { color: #666; font-size: 0.875rem; margin-bottom: 1.5rem; }
+.subtitle a { color: #06c; }
+
+.status { font-size: 0.85rem; color: #888; margin-bottom: 1rem; }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.5rem;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: box-shadow 0.15s;
+}
+.card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.1); }
+
+.card-cover {
+  width: 100%;
+  max-width: 150px;
+  height: auto;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  margin-bottom: 0.75rem;
+}
+
+.card-title {
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin-bottom: 0.1rem;
+  text-align: center;
+}
+
+.card-author {
+  font-size: 0.75rem;
+  color: #666;
+  margin-bottom: 0.5rem;
+  text-align: center;
+}
+
+.card-desc {
+  font-size: 0.75rem;
+  color: #444;
+  line-height: 1.4;
+  text-align: left;
+  margin-bottom: 0.5rem;
+}
+
+.card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  justify-content: center;
+  margin-bottom: 0.5rem;
+}
+
+.tag {
+  font-size: 0.65rem;
+  background: #f0f0f0;
+  color: #555;
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.card-sample {
+  display: inline-block;
+  font-size: 0.75rem;
+  color: #06c;
+  text-decoration: none;
+  border: 1px solid #06c;
+  border-radius: 4px;
+  padding: 0.25rem 0.6rem;
+  margin-top: auto;
+}
+.card-sample:hover { background: #06c; color: #fff; }
+
+@media (max-width: 900px) {
+  .grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 600px) {
+  body { padding: 0.75rem; }
+  .grid { grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+}
+</style>
+</head>
+<body>
+
+<h1>Audiobook Chooser</h1>
+<p class="subtitle">Audiobooks available now at Berkeley Public Library. <a href="about.html">About</a></p>
+
+<p class="status" id="status">Loading books…</p>
+<div class="grid" id="grid"></div>
+
+<script>
+let allBooks = [];
+let libbyCache = {};
+const $ = id => document.getElementById(id);
+
+const WEIGHTS = { ageFit: 70, length: 50, engagement: 70, recency: 30 };
+const CACHE_KEY = 'audiobook-libby-cache';
+const CACHE_HOURS = 4;
+
+function loadCache() {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const { data, timestamp } = JSON.parse(raw);
+    const age = (Date.now() - timestamp) / (1000 * 60 * 60);
+    if (age > CACHE_HOURS) return null;
+    return { data, age };
+  } catch (e) { return null; }
+}
+
+function saveCache() {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ data: libbyCache, timestamp: Date.now() }));
+  } catch (e) {}
+}
+
+// --- Libby API ---
+const LIBBY_API = 'https://thunder.api.overdrive.com/v2/libraries/berkeleypubliclibrary/media';
+
+async function checkLibby(title, author) {
+  const cacheKey = title.toLowerCase();
+  if (libbyCache[cacheKey]) return libbyCache[cacheKey];
+
+  const result = { status: 'unavailable', detail: 'Not in catalog' };
+
+  try {
+    const query = encodeURIComponent(title + ' ' + author.split(',')[0]);
+    const resp = await fetch(LIBBY_API + '?query=' + query + '&limit=10');
+    if (!resp.ok) throw new Error('API error');
+    const data = await resp.json();
+
+    if (data.items && data.items.length > 0) {
+      const titleLower = title.toLowerCase();
+      for (const item of data.items) {
+        const t = (item.title || '').toLowerCase();
+        const isMatch = t === titleLower || t.startsWith(titleLower) || titleLower.startsWith(t);
+        if (!isMatch) continue;
+
+        const fmt = (item.type && item.type.id) ? item.type.id : '';
+        if (fmt !== 'audiobook') continue;
+
+        if (item.covers) {
+          result.cover = (item.covers.cover300Wide && item.covers.cover300Wide.href) ||
+                         (item.covers.cover150Wide && item.covers.cover150Wide.href);
+        }
+        if (item.id) result.mediaId = item.id;
+
+        if (item.isAvailable) {
+          result.status = 'available';
+          result.detail = item.availableCopies + ' of ' + item.ownedCopies + ' available';
+        } else if (item.ownedCopies > 0) {
+          const wait = item.estimatedWaitDays ? '~' + item.estimatedWaitDays + 'd' : '';
+          const holds = item.holdsCount ? item.holdsCount + ' holds' : '';
+          result.status = 'holdable';
+          result.detail = [holds, wait].filter(Boolean).join(', ');
+        }
+        break;
+      }
+    }
+  } catch (e) {}
+
+  libbyCache[cacheKey] = result;
+  return result;
+}
+
+// --- Grid rendering ---
+function renderGrid(books) {
+  const grid = $('grid');
+  grid.innerHTML = '';
+
+  books.forEach(book => {
+    const info = libbyCache[book.title.toLowerCase()];
+    const card = document.createElement('div');
+    card.className = 'card';
+
+    if (info && info.cover) {
+      const img = document.createElement('img');
+      img.className = 'card-cover';
+      img.src = info.cover;
+      img.alt = book.title;
+      img.onerror = function() { this.style.display = 'none'; };
+      card.appendChild(img);
+    }
+
+    const title = document.createElement('div');
+    title.className = 'card-title';
+    title.textContent = book.title;
+    card.appendChild(title);
+
+    const author = document.createElement('div');
+    author.className = 'card-author';
+    author.textContent = book.author;
+    card.appendChild(author);
+
+    if (book.description) {
+      const desc = document.createElement('div');
+      desc.className = 'card-desc';
+      desc.textContent = book.description;
+      card.appendChild(desc);
+    }
+
+    const meta = document.createElement('div');
+    meta.className = 'card-meta';
+    if (book.genre) {
+      const t = document.createElement('span');
+      t.className = 'tag';
+      t.textContent = book.genre;
+      meta.appendChild(t);
+    }
+    if (!isNaN(book.listening_hours)) {
+      const t = document.createElement('span');
+      t.className = 'tag';
+      t.textContent = book.listening_hours + ' hrs';
+      meta.appendChild(t);
+    }
+    if (book.series_name) {
+      const t = document.createElement('span');
+      t.className = 'tag';
+      t.textContent = book.series_name + (!isNaN(book.series_order) ? ' #' + book.series_order : '');
+      meta.appendChild(t);
+    }
+    if (!isNaN(book.age_min) && !isNaN(book.age_max)) {
+      const t = document.createElement('span');
+      t.className = 'tag';
+      t.textContent = 'Ages ' + book.age_min + '–' + book.age_max;
+      meta.appendChild(t);
+    }
+    if (meta.children.length > 0) card.appendChild(meta);
+
+    if (info && info.mediaId) {
+      const link = document.createElement('a');
+      link.className = 'card-sample';
+      link.textContent = '▶ Sample';
+      link.href = 'https://berkeleypubliclibrary.overdrive.com/media/' + info.mediaId;
+      link.target = '_blank';
+      link.rel = 'noopener';
+      card.appendChild(link);
+    }
+
+    grid.appendChild(card);
+  });
+}
+
+// --- Auto-check: find 20 available audiobooks ---
+async function autoCheck() {
+  const statusEl = $('status');
+  statusEl.textContent = 'Finding available audiobooks…';
+
+  const sorted = [...allBooks].filter(b => !b.listened).sort((a, b) => a.score - b.score);
+  const batchSize = 5;
+  const delay = ms => new Promise(r => setTimeout(r, ms));
+  let checkedCount = 0;
+
+  for (let i = 0; i < sorted.length; i += batchSize) {
+    const batch = sorted.slice(i, i + batchSize);
+    await Promise.all(batch.map(b => checkLibby(b.title, b.author)));
+    checkedCount = Math.min(i + batchSize, sorted.length);
+
+    const available = sorted.slice(0, checkedCount).filter(b => {
+      const info = libbyCache[b.title.toLowerCase()];
+      return info && info.status === 'available';
+    });
+
+    renderGrid(available.slice(0, 20));
+    statusEl.textContent = 'Checking… ' + available.length + ' available (' + checkedCount + ' checked)';
+
+    if (available.length >= 20) break;
+    if (i + batchSize < sorted.length) await delay(200);
+  }
+
+  const available = sorted.filter(b => {
+    const info = libbyCache[b.title.toLowerCase()];
+    return info && info.status === 'available';
+  });
+  renderGrid(available.slice(0, 20));
+
+  const shown = Math.min(20, available.length);
+  if (shown === 0) {
+    statusEl.textContent = 'No audiobooks currently available on Libby.';
+  } else {
+    statusEl.textContent = shown + ' audiobooks available now on Libby';
+  }
+  saveCache();
+}
+
+// --- Data loading & ranking ---
+function loadData() {
+  fetch('books.csv')
+    .then(r => r.text())
+    .then(text => {
+      const result = Papa.parse(text, {
+        header: true,
+        skipEmptyLines: true,
+        transformHeader: h => h.trim(),
+      });
+      allBooks = result.data.map(row => {
+        const clean = {};
+        for (const k of Object.keys(row)) clean[k.trim()] = (row[k] || '').trim();
+        return {
+          title: clean.title || '',
+          author: clean.author || '',
+          narrator: clean.narrator || '',
+          year_published: parseFloat(clean.year_published) || NaN,
+          genre: clean.genre || '',
+          engagement: parseFloat(clean.engagement) || NaN,
+          age_min: parseFloat(clean.age_min) || NaN,
+          age_max: parseFloat(clean.age_max) || NaN,
+          listening_hours: parseFloat(clean.listening_hours) || NaN,
+          series_name: clean.series_name || '',
+          series_order: parseFloat(clean.series_order) || NaN,
+          description: clean.description || '',
+          listened: (clean.listened || '').trim().toLowerCase() === 'yes',
+        };
+      }).filter(b => b.title);
+
+      rank();
+
+      const cached = loadCache();
+      if (cached) {
+        libbyCache = cached.data;
+        const sorted = [...allBooks].filter(b => !b.listened).sort((a, b) => a.score - b.score);
+        const available = sorted.filter(b => {
+          const info = libbyCache[b.title.toLowerCase()];
+          return info && info.status === 'available';
+        });
+        renderGrid(available.slice(0, 20));
+        const hrs = Math.round(cached.age);
+        const mins = Math.round(cached.age * 60);
+        const ageText = hrs >= 1 ? hrs + 'h ago' : mins + 'm ago';
+        $('status').textContent = available.length + ' audiobooks available on Libby (cached ' + ageText + ')';
+      } else {
+        autoCheck();
+      }
+    });
+}
+
+function normalizeAgeFit(books) {
+  const listenerAge = 7.5, maxDist = 5;
+  return books.map(b => {
+    if (isNaN(b.age_min) || isNaN(b.age_max)) return NaN;
+    let dist;
+    if (listenerAge >= b.age_min && listenerAge <= b.age_max) dist = 0;
+    else if (listenerAge < b.age_min) dist = b.age_min - listenerAge;
+    else dist = listenerAge - b.age_max;
+    return Math.min(dist, maxDist) / maxDist;
+  });
+}
+
+function normalizeLength(books) {
+  const logMin = Math.log(0.5), logMax = Math.log(20);
+  return books.map(b => {
+    if (isNaN(b.listening_hours)) return NaN;
+    const clamped = Math.max(0.5, Math.min(20, b.listening_hours));
+    return (Math.log(clamped) - logMin) / (logMax - logMin);
+  });
+}
+
+function normalizeEngagement(books) {
+  return books.map(b => isNaN(b.engagement) ? NaN : (5 - b.engagement) / 4);
+}
+
+function normalizeYear(books) {
+  const currentYear = 2026, maxDist = currentYear - 1800, logMax = Math.log(maxDist + 1);
+  return books.map(b => {
+    if (isNaN(b.year_published)) return NaN;
+    const clamped = Math.max(1800, Math.min(currentYear, b.year_published));
+    return Math.log(currentYear - clamped + 1) / logMax;
+  });
+}
+
+function rank() {
+  const w = WEIGHTS;
+  const totalWeight = w.ageFit + w.length + w.engagement + w.recency;
+
+  const normAge  = normalizeAgeFit(allBooks);
+  const normLen  = normalizeLength(allBooks);
+  const normEng  = normalizeEngagement(allBooks);
+  const normYear = normalizeYear(allBooks);
+
+  allBooks.forEach((book, i) => {
+    if (totalWeight === 0) { book.score = 0.5; return; }
+    let wSum = 0, vSum = 0;
+    const dims = [
+      { norm: normAge[i],  weight: w.ageFit },
+      { norm: normLen[i],  weight: w.length },
+      { norm: normEng[i],  weight: w.engagement },
+      { norm: normYear[i], weight: w.recency },
+    ];
+    for (const d of dims) {
+      if (!isNaN(d.norm)) { wSum += d.weight; vSum += d.norm * d.weight; }
+    }
+    book.score = wSum > 0 ? vSum / wSum : 0.5;
+  });
+}
+
+loadData();
+</script>
+</body>
+</html>
