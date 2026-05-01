@@ -293,6 +293,160 @@ tr td.has-tip .tip { left: 0; right: auto; }
   .hide-mobile { display: none; }
   .search-box { width: 140px; }
 }
+
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid #e0e0e0;
+  margin-bottom: 1.25rem;
+}
+.tab-btn {
+  padding: 0.55rem 1.1rem;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: #666;
+  font-family: inherit;
+}
+.tab-btn:hover { color: #333; }
+.tab-btn.active {
+  color: #1a1a1a;
+  border-bottom-color: #1a1a1a;
+  font-weight: 600;
+}
+
+/* Reading Menu view */
+.menu-section { margin-bottom: 1.5rem; }
+.menu-section-h {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.4rem;
+  color: #555;
+  padding-bottom: 0.2rem;
+  border-bottom: 1px solid #eee;
+}
+.menu-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 0.5rem;
+  align-items: start;
+}
+@media (max-width: 700px) {
+  .menu-cards { grid-template-columns: 1fr; }
+}
+.menu-card {
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 4px;
+  padding: 0.45rem 0.65rem;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+.menu-card.read { opacity: 0.5; }
+.menu-card-header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.menu-card-title { font-weight: 600; font-size: 0.85rem; }
+.menu-card-title.has-tip { position: relative; cursor: help; }
+.menu-card-title.has-tip .tip {
+  display: none;
+  position: absolute;
+  left: 0;
+  top: calc(100% + 4px);
+  background: #222;
+  color: #f5f5f5;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  padding: 0.55rem 0.7rem;
+  border-radius: 5px;
+  width: 320px;
+  max-width: 80vw;
+  z-index: 200;
+  pointer-events: none;
+  white-space: normal;
+  font-weight: 400;
+  box-shadow: 0 3px 12px rgba(0,0,0,0.25);
+}
+.menu-card-title.has-tip:hover .tip { display: block; }
+.menu-card-author { color: #777; font-size: 0.75rem; }
+.menu-role-badge {
+  display: inline-block;
+  font-size: 0.55rem;
+  font-weight: 700;
+  padding: 0.05rem 0.35rem;
+  border-radius: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.menu-role-badge.anchor { background: #1a1a1a; color: #fff; }
+.menu-role-badge.sampler { display: none; }
+.menu-card-note {
+  font-size: 0.78rem;
+  color: #333;
+  margin: 0.15rem 0 0.2rem;
+}
+.menu-card-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  font-size: 0.7rem;
+  color: #666;
+  margin: 0.15rem 0;
+}
+.menu-card-stats .stat-label { color: #aaa; margin-right: 0.15rem; }
+.menu-card-stats .flat-flag { color: #c0392b; font-weight: 600; }
+.menu-card-translator {
+  font-size: 0.7rem;
+  color: #666;
+  margin: 0.1rem 0;
+}
+.menu-card-translator .stat-label { color: #aaa; margin-right: 0.15rem; }
+.tradition-rec {
+  font-size: 0.78rem;
+  color: #333;
+  margin: 0 0 0.5rem;
+  padding: 0.3rem 0.55rem;
+  background: #fafafa;
+  border-left: 2px solid #1a1a1a;
+}
+.tradition-rec strong { font-weight: 600; }
+.menu-card-avail {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 0.7rem;
+  margin-top: 0.25rem;
+  color: #888;
+}
+.menu-card-avail .label { color: #aaa; margin-right: 0.1rem; }
+.menu-card-avail .avail-badge { font-size: 0.6rem; padding: 0.05rem 0.3rem; }
+.bundle-hint {
+  display: inline-block;
+  font-size: 0.62rem;
+  font-weight: 600;
+  background: #e3f4e8;
+  color: #1d6b2f;
+  padding: 0.05rem 0.4rem;
+  border-radius: 2px;
+  margin-left: 0.2rem;
+}
+.menu-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
 </style>
 </head>
 <body>
@@ -302,6 +456,12 @@ tr td.has-tip .tip { left: 0; right: auto; }
 
 <p class="caveat">Note: all data currently from Claude and unchecked. There are likely errors.</p>
 
+<div class="tabs">
+  <button class="tab-btn active" data-tab="browse">Browse</button>
+  <button class="tab-btn" data-tab="menu">Reading Menu</button>
+</div>
+
+<div id="browseView">
 <div class="controls">
   <div class="slider-group">
     <label>Readability <span class="pct" id="pct-readability"></span></label>
@@ -368,6 +528,15 @@ tr td.has-tip .tip { left: 0; right: auto; }
   </thead>
   <tbody id="tbody"></tbody>
 </table>
+</div><!-- /#browseView -->
+
+<div id="menuView" hidden>
+  <div class="menu-toolbar">
+    <button class="avail-btn" id="menuAvailBtn" onclick="checkMenuAvailability()">Check Availability</button>
+    <span class="avail-status" id="menuAvailStatus" style="margin: 0;">Press to look up Berkeley Public Library availability for menu books.</span>
+  </div>
+  <div id="menuContent"></div>
+</div>
 
 <script>
 const COLUMNS = [
@@ -982,6 +1151,265 @@ function updatePcts() {
 $('topN').addEventListener('change', renderTable);
 $('search').addEventListener('input', renderTable);
 $('hideRead').addEventListener('change', renderTable);
+
+// --- Reading Menu tab ---
+let menuGroups = null;     // [{ tradition, books: [{title, author, note, menu_role, translator, opening}] }]
+let menuRendered = false;
+
+function normTitle(s) {
+  return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+}
+
+const TRADITION_RECS = {
+  'Russian 19th century': '<strong>Anchor:</strong> Anna Karenina (or Ivan Ilyich if length is a concern)',
+  'Mid-century Japanese': '<strong>Anchor:</strong> The Makioka Sisters (or Kokoro if length is a concern)',
+  'Latin American boom': '<strong>Anchor:</strong> One Hundred Years of Solitude',
+  '19th-century realism (mostly French)': '<strong>Anchor:</strong> Madame Bovary (Middlemarch is the bigger anchor but it eats the quarter)',
+};
+const ROLE_ORDER = { anchor: 0, 'anchor-alt': 1, sampler: 2 };
+
+async function loadMenuData() {
+  if (menuGroups) return;
+  const csvText = await fetch('reading_menu_data.csv').then(r => r.text());
+  const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+  const groupsByName = new Map();
+  for (const row of parsed.data) {
+    if (!row.title) continue;
+    const tradition = (row.tradition || '').trim();
+    if (!groupsByName.has(tradition)) groupsByName.set(tradition, { tradition, books: [] });
+    groupsByName.get(tradition).books.push({
+      title: (row.title || '').trim(),
+      author: (row.author || '').trim(),
+      note: (row.note || '').trim(),
+      menu_role: (row.menu_role || '').trim(),
+      translator: (row.translator || '').trim(),
+      amazon_classics_url: (row.amazon_classics_url || '').trim(),
+    });
+  }
+  for (const g of groupsByName.values()) {
+    g.books.sort((a, b) => (ROLE_ORDER[a.menu_role] ?? 9) - (ROLE_ORDER[b.menu_role] ?? 9));
+  }
+  menuGroups = [...groupsByName.values()];
+}
+function findBook(title) {
+  const key = normTitle(title);
+  return allBooks.find(b => normTitle(b.title) === key);
+}
+
+function renderMenuView() {
+  const container = $('menuContent');
+  container.innerHTML = '';
+  if (!menuGroups) return;
+
+  for (const group of menuGroups) {
+    const section = document.createElement('div');
+    section.className = 'menu-section';
+    const h = document.createElement('div');
+    h.className = 'menu-section-h';
+    h.textContent = group.tradition;
+    section.appendChild(h);
+
+    const rec = TRADITION_RECS[group.tradition];
+    if (rec) {
+      const recEl = document.createElement('div');
+      recEl.className = 'tradition-rec';
+      recEl.innerHTML = rec;
+      section.appendChild(recEl);
+    }
+
+    const cards = document.createElement('div');
+    cards.className = 'menu-cards';
+
+    for (const item of group.books) {
+      const book = findBook(item.title);
+      const card = document.createElement('div');
+      card.className = 'menu-card';
+      if (book && book.read) card.classList.add('read');
+
+      // Header: title, author, role badge
+      const header = document.createElement('div');
+      header.className = 'menu-card-header';
+      const titleEl = document.createElement('span');
+      titleEl.className = 'menu-card-title';
+      titleEl.textContent = item.title;
+      if (book && book.description) {
+        titleEl.classList.add('has-tip');
+        const tip = document.createElement('span');
+        tip.className = 'tip';
+        tip.textContent = book.description;
+        titleEl.appendChild(tip);
+      }
+      header.appendChild(titleEl);
+      const authorEl = document.createElement('span');
+      authorEl.className = 'menu-card-author';
+      authorEl.textContent = (book && book.author) ? book.author : item.author;
+      header.appendChild(authorEl);
+      if (item.menu_role) {
+        const roleEl = document.createElement('span');
+        roleEl.className = 'menu-role-badge ' + item.menu_role;
+        roleEl.textContent = item.menu_role;
+        header.appendChild(roleEl);
+      }
+      card.appendChild(header);
+
+      // Editorial note
+      if (item.note) {
+        const noteEl = document.createElement('div');
+        noteEl.className = 'menu-card-note';
+        noteEl.textContent = item.note;
+        card.appendChild(noteEl);
+      }
+
+      // Stats: pages, year, readability, canon tier, conventionality
+      const stats = document.createElement('div');
+      stats.className = 'menu-card-stats';
+      const pushStatTo = (parent, label, val, extraClass) => {
+        if (val == null || val === '' || (typeof val === 'number' && isNaN(val))) return;
+        const sp = document.createElement('span');
+        if (extraClass) sp.className = extraClass;
+        const lab = document.createElement('span');
+        lab.className = 'stat-label';
+        lab.textContent = label + ':';
+        sp.appendChild(lab);
+        sp.appendChild(document.createTextNode(' ' + val));
+        parent.appendChild(sp);
+      };
+      if (book) {
+        pushStatTo(stats, 'Pages', isNaN(book.pages) ? null : book.pages.toLocaleString());
+        pushStatTo(stats, 'Year', isNaN(book.year_published) ? null : book.year_published);
+        const readVal = isNaN(book.readability) ? null : (book.readability + (book.flat_prose ? '*' : ''));
+        pushStatTo(stats, 'Readability', readVal, book.flat_prose ? 'flat-flag' : '');
+        pushStatTo(stats, 'Canon', isNaN(book.canon_tier) ? null : book.canon_tier);
+        pushStatTo(stats, 'Conv.', isNaN(book.conventionality) ? null : book.conventionality);
+      }
+      card.appendChild(stats);
+
+      if (item.translator) {
+        const tr = document.createElement('div');
+        tr.className = 'menu-card-translator';
+        const lab = document.createElement('span');
+        lab.className = 'stat-label';
+        lab.textContent = 'Translator:';
+        tr.appendChild(lab);
+        tr.appendChild(document.createTextNode(' ' + item.translator));
+        card.appendChild(tr);
+      }
+
+
+      // Availability row
+      const avail = document.createElement('div');
+      avail.className = 'menu-card-avail';
+      const lab = document.createElement('span');
+      lab.className = 'label';
+      lab.textContent = 'Libby:';
+      avail.appendChild(lab);
+      const info = book ? libbyCache[book.title.toLowerCase()] : null;
+      const ebookLabel = document.createElement('span');
+      ebookLabel.className = 'label';
+      ebookLabel.textContent = 'eBook';
+      avail.appendChild(ebookLabel);
+      avail.appendChild(makeBadge(info ? info.ebook : null));
+      const audioLabel = document.createElement('span');
+      audioLabel.className = 'label';
+      audioLabel.textContent = 'Audio';
+      avail.appendChild(audioLabel);
+      avail.appendChild(makeBadge(info ? info.audio : null));
+      if (book) {
+        const isPD = !isNaN(book.year_published) && book.year_published <= 1929;
+        const link = document.createElement('a');
+        link.className = 'amazon-link';
+        if (item.amazon_classics_url) {
+          link.href = item.amazon_classics_url;
+          link.textContent = 'AmazonClassics (Free Kindle)';
+        } else {
+          link.href = isPD
+            ? amazonSearchUrl(book.title, book.author)
+            : ('https://www.amazon.com/s?k=' + encodeURIComponent(book.title + ' ' + book.author.split(',')[0]) + '&i=digital-text');
+          link.textContent = isPD ? 'Free Kindle (search)' : 'Kindle';
+        }
+        link.target = '_blank';
+        link.rel = 'noopener';
+        link.style.marginLeft = '0.4rem';
+        avail.appendChild(link);
+        if (item.amazon_classics_url) {
+          const hint = document.createElement('span');
+          hint.className = 'bundle-hint';
+          hint.textContent = '+ Whispersync audio ~$1–6';
+          hint.title = 'AmazonClassics edition is free Kindle and pairs with a discounted Audible audiobook (Whispersync). Translation is older PD (Garnett, Marx-Aveling, etc.), not the recommended modern one.';
+          avail.appendChild(hint);
+        } else if (isPD) {
+          const hint = document.createElement('span');
+          hint.className = 'bundle-hint';
+          hint.style.background = '#f4f0e3';
+          hint.style.color = '#7a5a0d';
+          hint.textContent = 'No paired Whispersync — verify on Amazon';
+          hint.title = 'Free Kindle editions exist but no AmazonClassics version is paired with discounted Whispersync audio. Check the product page for a "Whispersync for Voice" banner.';
+          avail.appendChild(hint);
+        }
+      }
+      card.appendChild(avail);
+
+      cards.appendChild(card);
+    }
+
+    section.appendChild(cards);
+    container.appendChild(section);
+  }
+}
+
+async function checkMenuAvailability() {
+  if (!menuGroups) await loadMenuData();
+  const btn = $('menuAvailBtn');
+  btn.disabled = true;
+  btn.textContent = 'Checking…';
+  const statusEl = $('menuAvailStatus');
+  statusEl.textContent = 'Checking Berkeley Public Library availability…';
+
+  const titles = [];
+  for (const group of menuGroups) {
+    for (const item of group.books) {
+      const book = findBook(item.title);
+      if (book) titles.push(book);
+    }
+  }
+
+  const batchSize = 3;
+  const delay = ms => new Promise(r => setTimeout(r, ms));
+  let checked = 0;
+  for (let i = 0; i < titles.length; i += batchSize) {
+    const batch = titles.slice(i, i + batchSize);
+    await Promise.all(batch.map(b => checkLibby(b.title, b.author)));
+    checked = Math.min(i + batchSize, titles.length);
+    statusEl.textContent = 'Checking… ' + checked + '/' + titles.length;
+    renderMenuView();
+    if (i + batchSize < titles.length) await delay(300);
+  }
+
+  const results = titles.map(b => libbyCache[b.title.toLowerCase()]).filter(Boolean);
+  const ebookAvail = results.filter(v => v.ebook.status === 'available').length;
+  const ebookHold = results.filter(v => v.ebook.status === 'holdable').length;
+  const audioAvail = results.filter(v => v.audio.status === 'available').length;
+  const audioHold = results.filter(v => v.audio.status === 'holdable').length;
+  statusEl.textContent = 'Checked ' + titles.length + ' — Ebooks: ' + ebookAvail + ' available, ' + ebookHold + ' holdable. Audio: ' + audioAvail + ' available, ' + audioHold + ' holdable.';
+  btn.textContent = 'Re-check';
+  btn.disabled = false;
+}
+
+async function showMenuTab() {
+  await loadMenuData();
+  renderMenuView();
+  menuRendered = true;
+}
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const tab = btn.dataset.tab;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+    $('browseView').hidden = tab !== 'browse';
+    $('menuView').hidden = tab !== 'menu';
+    if (tab === 'menu') showMenuTab();
+  });
+});
 
 loadData();
 </script>
