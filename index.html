@@ -447,6 +447,48 @@ tr td.has-tip .tip { left: 0; right: auto; }
   flex-wrap: wrap;
   margin-bottom: 0.75rem;
 }
+
+/* Up Next view */
+.upnext-narrative {
+  max-width: 760px;
+  margin-bottom: 1.25rem;
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: #222;
+}
+.upnext-narrative p { margin: 0 0 0.6rem; }
+.upnext-h {
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin-bottom: 0.6rem;
+}
+.upnext-sh {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0.9rem 0 0.35rem;
+  color: #555;
+}
+.upnext-list {
+  margin: 0 0 0.6rem 1.1rem;
+  padding: 0;
+}
+.upnext-list li { margin-bottom: 0.3rem; }
+
+.upnext-done-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.7rem;
+  color: #888;
+  margin-left: auto;
+  cursor: pointer;
+  user-select: none;
+}
+.upnext-done-toggle input { cursor: pointer; }
+.menu-card.upnext-done { opacity: 0.45; }
+.menu-card.upnext-done .menu-card-title { text-decoration: line-through; }
 </style>
 </head>
 <body>
@@ -459,6 +501,7 @@ tr td.has-tip .tip { left: 0; right: auto; }
 <div class="tabs">
   <button class="tab-btn active" data-tab="browse">Browse</button>
   <button class="tab-btn" data-tab="menu">Reading Menu</button>
+  <button class="tab-btn" data-tab="upnext">Up Next</button>
 </div>
 
 <div id="browseView">
@@ -536,6 +579,24 @@ tr td.has-tip .tip { left: 0; right: auto; }
     <span class="avail-status" id="menuAvailStatus" style="margin: 0;">Press to look up Berkeley Public Library availability for menu books.</span>
   </div>
   <div id="menuContent"></div>
+</div>
+
+<div id="upNextView" hidden>
+  <div class="menu-toolbar">
+    <button class="avail-btn" id="upNextAvailBtn" onclick="checkUpNextAvailability()">Check Availability</button>
+    <span class="avail-status" id="upNextAvailStatus" style="margin: 0;">Press to look up Berkeley Public Library availability for rotation books.</span>
+  </div>
+
+  <div id="upNextContent"></div>
+
+  <div class="upnext-narrative" style="margin-top: 1rem;">
+    <h3 class="upnext-sh">Profile</h3>
+    <ul class="upnext-list">
+      <li>5 translated, 1 pre-1900, 1 dedicated story collection, 2 non-realist</li>
+      <li>Difficulty mix supports concurrent easier/harder pairing: <em>Vegetarian</em> and <em>Ficciones</em> fast; <em>Housekeeping</em> and <em>Bovary</em> demanding</li>
+      <li>25% Anglo (down from homebase tilt). Could swap one Anglo for another translated story collection (Lispector, Lahiri, Babel) to lean harder into stretch.</li>
+    </ul>
+  </div>
 </div>
 
 <script>
@@ -1401,13 +1462,234 @@ async function showMenuTab() {
   menuRendered = true;
 }
 
+// --- Up Next tab ---
+const UP_NEXT_GROUPS = [
+  {
+    label: 'Anglo',
+    books: [
+      { title: 'Housekeeping',     author: 'Marilynne Robinson', note: 'The harder Robinson per your own taxonomy.', translator: '' },
+      { title: 'The Known World',  author: 'Edward P. Jones',    note: 'Anglo, but a structure unlike your recents.', translator: '' },
+    ],
+  },
+  {
+    label: 'Stretches',
+    books: [
+      { title: 'The Sound of the Mountain', author: 'Yasunari Kawabata', note: 'Japanese, translated.', translator: 'Edward Seidensticker' },
+      { title: 'Madame Bovary',             author: 'Gustave Flaubert',  note: 'Pre-1900 + translated.', translator: 'Lydia Davis' },
+      { title: 'Ficciones',                 author: 'Jorge Luis Borges', note: 'Short stories + non-realist + translated. Triple gap.', translator: 'No strong consensus — Kerrigan or Hurley.' },
+      { title: 'The Vegetarian',            author: 'Han Kang',          note: 'Korean, translated, short.', translator: 'Deborah Smith' },
+      { title: 'The Door',                  author: 'Magda Szabó',       note: 'Hungarian, less commonly read.', translator: 'Len Rix' },
+    ],
+  },
+  {
+    label: 'Ongoing',
+    books: [
+      { title: "Chekhov's Selected Stories", author: 'Anton Chekhov', note: 'Little Trilogy up next.', translator: '' },
+    ],
+  },
+];
+
+const UP_NEXT_DONE_KEY = 'up_next_done_v1';
+function loadUpNextDone() {
+  try { return JSON.parse(localStorage.getItem(UP_NEXT_DONE_KEY) || '{}'); }
+  catch (e) { return {}; }
+}
+function saveUpNextDone(state) {
+  try { localStorage.setItem(UP_NEXT_DONE_KEY, JSON.stringify(state)); } catch (e) {}
+}
+function toggleUpNextDone(title, isDone) {
+  const state = loadUpNextDone();
+  if (isDone) state[title] = true; else delete state[title];
+  saveUpNextDone(state);
+}
+
+function renderUpNextCard(item) {
+  const book = findBook(item.title);
+  const doneState = loadUpNextDone();
+  const isDone = !!doneState[item.title];
+  const card = document.createElement('div');
+  card.className = 'menu-card';
+  if (book && book.read) card.classList.add('read');
+  if (isDone) card.classList.add('upnext-done');
+
+  const header = document.createElement('div');
+  header.className = 'menu-card-header';
+  const titleEl = document.createElement('span');
+  titleEl.className = 'menu-card-title';
+  titleEl.textContent = item.title;
+  if (book && book.description) {
+    titleEl.classList.add('has-tip');
+    const tip = document.createElement('span');
+    tip.className = 'tip';
+    tip.textContent = book.description;
+    titleEl.appendChild(tip);
+  }
+  header.appendChild(titleEl);
+  const authorEl = document.createElement('span');
+  authorEl.className = 'menu-card-author';
+  authorEl.textContent = (book && book.author) ? book.author : item.author;
+  header.appendChild(authorEl);
+
+  const doneToggle = document.createElement('label');
+  doneToggle.className = 'upnext-done-toggle';
+  const cb = document.createElement('input');
+  cb.type = 'checkbox';
+  cb.checked = isDone;
+  cb.addEventListener('change', () => {
+    toggleUpNextDone(item.title, cb.checked);
+    card.classList.toggle('upnext-done', cb.checked);
+  });
+  doneToggle.appendChild(cb);
+  doneToggle.appendChild(document.createTextNode('Done'));
+  header.appendChild(doneToggle);
+
+  card.appendChild(header);
+
+  if (item.note) {
+    const noteEl = document.createElement('div');
+    noteEl.className = 'menu-card-note';
+    noteEl.textContent = item.note;
+    card.appendChild(noteEl);
+  }
+
+  const stats = document.createElement('div');
+  stats.className = 'menu-card-stats';
+  const pushStat = (label, val, extraClass) => {
+    if (val == null || val === '' || (typeof val === 'number' && isNaN(val))) return;
+    const sp = document.createElement('span');
+    if (extraClass) sp.className = extraClass;
+    const lab = document.createElement('span');
+    lab.className = 'stat-label';
+    lab.textContent = label + ':';
+    sp.appendChild(lab);
+    sp.appendChild(document.createTextNode(' ' + val));
+    stats.appendChild(sp);
+  };
+  if (book) {
+    pushStat('Pages', isNaN(book.pages) ? null : book.pages.toLocaleString());
+    pushStat('Year', isNaN(book.year_published) ? null : book.year_published);
+    const readVal = isNaN(book.readability) ? null : (book.readability + (book.flat_prose ? '*' : ''));
+    pushStat('Readability', readVal, book.flat_prose ? 'flat-flag' : '');
+    pushStat('Canon', isNaN(book.canon_tier) ? null : book.canon_tier);
+    pushStat('Conv.', isNaN(book.conventionality) ? null : book.conventionality);
+  }
+  card.appendChild(stats);
+
+  if (item.translator) {
+    const tr = document.createElement('div');
+    tr.className = 'menu-card-translator';
+    const lab = document.createElement('span');
+    lab.className = 'stat-label';
+    lab.textContent = 'Translator:';
+    tr.appendChild(lab);
+    tr.appendChild(document.createTextNode(' ' + item.translator));
+    card.appendChild(tr);
+  }
+
+  const avail = document.createElement('div');
+  avail.className = 'menu-card-avail';
+  const lab = document.createElement('span');
+  lab.className = 'label';
+  lab.textContent = 'Libby:';
+  avail.appendChild(lab);
+  const info = book ? libbyCache[book.title.toLowerCase()] : null;
+  const ebookLabel = document.createElement('span');
+  ebookLabel.className = 'label';
+  ebookLabel.textContent = 'eBook';
+  avail.appendChild(ebookLabel);
+  avail.appendChild(makeBadge(info ? info.ebook : null));
+  const audioLabel = document.createElement('span');
+  audioLabel.className = 'label';
+  audioLabel.textContent = 'Audio';
+  avail.appendChild(audioLabel);
+  avail.appendChild(makeBadge(info ? info.audio : null));
+  if (book) {
+    const isPD = !isNaN(book.year_published) && book.year_published <= 1929;
+    const link = document.createElement('a');
+    link.className = 'amazon-link';
+    link.href = isPD
+      ? amazonSearchUrl(book.title, book.author)
+      : ('https://www.amazon.com/s?k=' + encodeURIComponent(book.title + ' ' + book.author.split(',')[0]) + '&i=digital-text');
+    link.textContent = isPD ? 'Free Kindle (search)' : 'Kindle';
+    link.target = '_blank';
+    link.rel = 'noopener';
+    link.style.marginLeft = '0.4rem';
+    avail.appendChild(link);
+  }
+  card.appendChild(avail);
+
+  return card;
+}
+
+function renderUpNextView() {
+  const container = $('upNextContent');
+  container.innerHTML = '';
+  for (const group of UP_NEXT_GROUPS) {
+    const section = document.createElement('div');
+    section.className = 'menu-section';
+    const h = document.createElement('div');
+    h.className = 'menu-section-h';
+    h.textContent = group.label + ' (' + group.books.length + ')';
+    section.appendChild(h);
+
+    const cards = document.createElement('div');
+    cards.className = 'menu-cards';
+    for (const item of group.books) cards.appendChild(renderUpNextCard(item));
+    section.appendChild(cards);
+    container.appendChild(section);
+  }
+}
+
+async function checkUpNextAvailability() {
+  const btn = $('upNextAvailBtn');
+  btn.disabled = true;
+  btn.textContent = 'Checking…';
+  const statusEl = $('upNextAvailStatus');
+  statusEl.textContent = 'Checking Berkeley Public Library availability…';
+
+  const titles = [];
+  for (const group of UP_NEXT_GROUPS) {
+    for (const item of group.books) {
+      const book = findBook(item.title);
+      if (book) titles.push(book);
+    }
+  }
+
+  const batchSize = 3;
+  const delay = ms => new Promise(r => setTimeout(r, ms));
+  let checked = 0;
+  for (let i = 0; i < titles.length; i += batchSize) {
+    const batch = titles.slice(i, i + batchSize);
+    await Promise.all(batch.map(b => checkLibby(b.title, b.author)));
+    checked = Math.min(i + batchSize, titles.length);
+    statusEl.textContent = 'Checking… ' + checked + '/' + titles.length;
+    renderUpNextView();
+    if (i + batchSize < titles.length) await delay(300);
+  }
+
+  const results = titles.map(b => libbyCache[b.title.toLowerCase()]).filter(Boolean);
+  const ebookAvail = results.filter(v => v.ebook.status === 'available').length;
+  const ebookHold = results.filter(v => v.ebook.status === 'holdable').length;
+  const audioAvail = results.filter(v => v.audio.status === 'available').length;
+  const audioHold = results.filter(v => v.audio.status === 'holdable').length;
+  statusEl.textContent = 'Checked ' + titles.length + ' — Ebooks: ' + ebookAvail + ' available, ' + ebookHold + ' holdable. Audio: ' + audioAvail + ' available, ' + audioHold + ' holdable.';
+  btn.textContent = 'Re-check';
+  btn.disabled = false;
+}
+
+function showUpNextTab() {
+  renderUpNextView();
+}
+
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     const tab = btn.dataset.tab;
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b === btn));
     $('browseView').hidden = tab !== 'browse';
     $('menuView').hidden = tab !== 'menu';
+    $('upNextView').hidden = tab !== 'upnext';
     if (tab === 'menu') showMenuTab();
+    if (tab === 'upnext') showUpNextTab();
   });
 });
 
