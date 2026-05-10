@@ -559,6 +559,7 @@ tr td.has-tip .tip { left: 0; right: auto; }
   </label>
   <input type="text" class="search-box" id="search" placeholder="Filter by title or author…">
   <label><input type="checkbox" id="hideRead"> Hide read</label>
+  <label title="Plot-driven (momentum carries you) or voice-driven (feels like listening to someone talk). Excludes books with no audio rating."><input type="checkbox" id="audioFriendly"> Audio-friendly</label>
   <button class="avail-btn" id="availBtn" onclick="checkAllAvailability()">Check Availability</button>
   <span class="active-filters" id="activeFilters"></span>
   <span class="book-count" id="bookCount"></span>
@@ -763,10 +764,16 @@ async function checkLibby(title, author) {
   return result;
 }
 
+function isAudioFriendly(b) {
+  return (!isNaN(b.plot_driven) && b.plot_driven >= 2) ||
+         (!isNaN(b.voice_driven) && b.voice_driven >= 2);
+}
+
 function getVisibleBooks() {
   const query = $('search').value.toLowerCase();
   let filtered = allBooks;
   if ($('hideRead').checked) filtered = filtered.filter(b => !b.read);
+  if ($('audioFriendly').checked) filtered = filtered.filter(isAudioFriendly);
   if (query) filtered = filtered.filter(b => b.title.toLowerCase().includes(query) || b.author.toLowerCase().includes(query));
   for (const [colKey, val] of Object.entries(activeFilters)) {
     if (val) filtered = filtered.filter(b => filterValue(b, colKey) === val);
@@ -860,6 +867,8 @@ function loadData() {
           language: clean.language || '',
           description: clean.description || '',
           conventionality: parseFloat(clean.conventionality) || NaN,
+          plot_driven: parseFloat(clean.plot_driven) || NaN,
+          voice_driven: parseFloat(clean.voice_driven) || NaN,
           read: (clean.read || '').trim().toLowerCase() === 'yes',
           flat_prose: (clean.flat_prose || '').trim().toLowerCase() === 'yes',
         };
@@ -1005,6 +1014,9 @@ function renderTable() {
   let filtered = allBooks;
   if ($('hideRead').checked) {
     filtered = filtered.filter(b => !b.read);
+  }
+  if ($('audioFriendly').checked) {
+    filtered = filtered.filter(isAudioFriendly);
   }
   if (query) {
     filtered = filtered.filter(b =>
@@ -1212,6 +1224,7 @@ function updatePcts() {
 $('topN').addEventListener('change', renderTable);
 $('search').addEventListener('input', renderTable);
 $('hideRead').addEventListener('change', renderTable);
+$('audioFriendly').addEventListener('change', renderTable);
 
 // --- Reading Menu tab ---
 let menuGroups = null;     // [{ tradition, books: [{title, author, note, menu_role, translator, opening}] }]
