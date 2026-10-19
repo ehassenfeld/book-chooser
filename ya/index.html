@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YA Book Chooser</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: #1a1a1a;
+  background: #fafafa;
+  padding: 1.5rem;
+  max-width: 1500px;
+  margin: 0 auto;
+  line-height: 1.5;
+}
+
+h1 { font-size: 1.5rem; font-weight: 600; margin-bottom: 0.25rem; }
+.subtitle { color: #666; font-size: 0.875rem; margin-bottom: 0.5rem; max-width: 760px; }
+.caveat { font-size: 0.8rem; color: #888; font-style: italic; margin-bottom: 1rem; }
+
+.controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+}
+.slider-group label { display: block; font-size: 0.8rem; font-weight: 600; color: #333; }
+.slider-group .hint { display: block; font-size: 0.65rem; color: #999; margin-bottom: 0.25rem; }
+.pct { font-weight: 400; font-size: 0.7rem; color: #999; }
+.slider-row { display: flex; align-items: center; gap: 0.5rem; }
+.slider-row input[type="range"] { flex: 1; accent-color: #333; }
+.slider-val { font-size: 0.8rem; font-variant-numeric: tabular-nums; min-width: 2ch; text-align: right; color: #666; }
+
+.toolbar { display: flex; align-items: center; gap: 0.9rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
+.toolbar label { font-size: 0.8rem; color: #555; }
+.toolbar select {
+  font-size: 0.8rem; padding: 0.25rem 0.5rem; border: 1px solid #ccc; border-radius: 4px; background: #fff;
+}
+.search-box { font-size: 0.8rem; padding: 0.35rem 0.6rem; border: 1px solid #ccc; border-radius: 4px; width: 200px; }
+.book-count { font-size: 0.8rem; color: #999; margin-left: auto; }
+
+.btn {
+  font-size: 0.8rem; padding: 0.35rem 0.8rem; border: 1px solid #333; border-radius: 4px;
+  background: #fff; cursor: pointer; font-weight: 600; color: #333;
+}
+.btn:hover { background: #333; color: #fff; }
+.btn:disabled { opacity: 0.5; cursor: default; background: #eee; color: #999; border-color: #ccc; }
+.btn.quiet { font-weight: 400; border-color: #ccc; color: #555; }
+.btn.quiet:hover { background: #f0f0f0; color: #222; }
+
+.status-line { font-size: 0.75rem; color: #888; margin-bottom: 0.5rem; min-height: 1.1em; }
+
+
+.table-wrap { width: 100%; }
+table {
+  width: 100%; border-collapse: collapse; font-size: 0.8rem; background: #fff;
+  border: 1px solid #e0e0e0; border-radius: 6px;
+}
+thead { background: #f5f5f5; }
+th, td { padding: 0.5rem 0.6rem; text-align: left; border-bottom: 1px solid #eee; vertical-align: top; }
+th {
+  font-weight: 600; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em;
+  color: #555; cursor: pointer; user-select: none; white-space: nowrap; position: relative;
+}
+th:hover { color: #000; }
+th .arrow { font-size: 0.6rem; margin-left: 0.2rem; }
+th .col-hint { display: block; font-size: 0.6rem; font-weight: 400; color: #888; text-transform: none; letter-spacing: 0; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+td.center, th.center { text-align: center; }
+tr:hover td { background: #f9f9f9; }
+tr.read td { color: #aaa; }
+tr.read td.title-cell { text-decoration: line-through; text-decoration-color: #ccc; }
+
+td.awards { color: #555; font-size: 0.74rem; max-width: 260px; }
+tr.read td.awards { color: #bbb; }
+
+.read-mark { color: #2f7a4a; font-weight: 700; }
+
+/* Hover tips: title → description, maturity → what drives it */
+.has-tip { position: relative; cursor: help; }
+.tip {
+  display: none; position: absolute; left: 0; top: calc(100% + 4px);
+  background: #222; color: #f5f5f5; font-size: 0.78rem; line-height: 1.45;
+  padding: 0.55rem 0.7rem; border-radius: 5px; width: 340px; max-width: 80vw;
+  z-index: 200; white-space: normal; font-weight: 400; text-transform: none; letter-spacing: 0;
+  box-shadow: 0 3px 12px rgba(0,0,0,0.25); text-align: left; text-decoration: none;
+}
+.has-tip:hover .tip, .has-tip.show .tip { display: block; }
+.tip.right { left: auto; right: 0; width: 260px; }
+
+.mat {
+  display: inline-block; min-width: 1.5rem; text-align: center; font-weight: 600;
+  font-size: 0.72rem; padding: 0.05rem 0.35rem; border-radius: 3px;
+}
+.mat.m1 { background: #e3f1e7; color: #2f7a4a; }
+.mat.m2 { background: #f8edd2; color: #8a5d00; }
+.mat.m3 { background: #f7e1da; color: #a3412b; }
+tr.read .mat { opacity: 0.5; }
+
+.award-part.has-tip { border-bottom: 1px dotted #bbb; }
+
+.filter-btn { display: inline-block; margin-left: 0.25rem; font-size: 0.6rem; color: #bbb; cursor: pointer; }
+.filter-btn:hover, .filter-btn.active { color: #333; }
+.filter-dropdown {
+  position: absolute; top: 100%; left: 0; background: #fff; border: 1px solid #ddd; border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12); max-height: 280px; overflow-y: auto; z-index: 100;
+  min-width: 140px; font-size: 0.8rem; text-transform: none; letter-spacing: 0; font-weight: 400;
+}
+.filter-option { padding: 0.3rem 0.6rem; cursor: pointer; white-space: nowrap; color: #333; }
+.filter-option:hover { background: #f0f0f0; }
+.filter-option.selected { background: #e8e8e8; font-weight: 600; }
+.active-filters { display: flex; gap: 0.4rem; flex-wrap: wrap; align-items: center; }
+.filter-tag { font-size: 0.75rem; background: #e8e8e8; padding: 0.15rem 0.5rem; border-radius: 3px; color: #333; }
+.filter-tag .remove { cursor: pointer; margin-left: 0.35rem; color: #999; font-weight: 600; }
+.filter-tag .remove:hover { color: #333; }
+
+.avail-badge { display: inline-block; font-size: 0.7rem; font-weight: 600; padding: 0.1rem 0.4rem; border-radius: 3px; white-space: nowrap; }
+.avail-badge.available { background: #d4edda; color: #155724; }
+.avail-badge.holdable { background: #fff3cd; color: #856404; }
+.avail-badge.unavailable { background: #f0f0f0; color: #999; }
+.avail-badge.unchecked { background: #fff; color: #ccc; font-weight: 400; }
+
+@media (max-width: 760px) {
+  body { padding: 1rem; }
+  .controls { grid-template-columns: 1fr 1fr; }
+  table { font-size: 0.74rem; }
+  th, td { padding: 0.35rem 0.4rem; }
+  .hide-mobile { display: none; }
+  .search-box { width: 150px; }
+  .tip { width: 260px; }
+}
+</style>
+</head>
+<body>
+
+<h1>YA Book Chooser</h1>
+<p class="subtitle">Award-winning young adult books, plus grown-up books a strong middle-school reader can handle. Hover over (or tap) a title for what it's about, and the maturity number for what drives it. A check mark means it's been read.</p>
+<p class="caveat">Prototype. Award results come from the awards' published lists. Maturity follows Common Sense Media's age ratings where they exist (76 of 100 books). Descriptions and page-turner scores are Claude's, with descriptions checked against publisher summaries.</p>
+
+<div class="controls">
+  <div class="slider-group">
+    <label>Acclaim <span class="pct" id="pct-acclaim"></span></label>
+    <span class="hint">higher = bigger prizes</span>
+    <div class="slider-row"><input type="range" id="w-acclaim" min="0" max="100" value="50"><span class="slider-val" id="v-acclaim">50</span></div>
+  </div>
+  <div class="slider-group">
+    <label>Page-turner <span class="pct" id="pct-pull"></span></label>
+    <span class="hint">higher = harder to put down</span>
+    <div class="slider-row"><input type="range" id="w-pull" min="0" max="100" value="70"><span class="slider-val" id="v-pull">70</span></div>
+  </div>
+  <div class="slider-group">
+    <label>Length <span class="pct" id="pct-length"></span></label>
+    <span class="hint">higher = fewer pages</span>
+    <div class="slider-row"><input type="range" id="w-length" min="0" max="100" value="20"><span class="slider-val" id="v-length">20</span></div>
+  </div>
+  <div class="slider-group">
+    <label>Recency <span class="pct" id="pct-recency"></span></label>
+    <span class="hint">higher = more recent</span>
+    <div class="slider-row"><input type="range" id="w-recency" min="0" max="100" value="30"><span class="slider-val" id="v-recency">30</span></div>
+  </div>
+</div>
+
+<div class="toolbar">
+  <label>Maturity
+    <select id="matCap">
+      <option value="3" selected>Show all</option>
+      <option value="2">Up to 2</option>
+      <option value="1">1 only</option>
+    </select>
+  </label>
+  <label>Show
+    <select id="topN">
+      <option value="25">25</option>
+      <option value="50" selected>50</option>
+      <option value="100">100</option>
+      <option value="all">All</option>
+    </select>
+  </label>
+  <input type="text" class="search-box" id="search" placeholder="Search title or author…">
+  <label><input type="checkbox" id="hideRead"> Hide read</label>
+  <button class="btn" id="availBtn">Check Libby</button>
+  <span class="active-filters" id="activeFilters"></span>
+  <span class="book-count" id="bookCount"></span>
+</div>
+<p class="status-line" id="status"></p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr id="headerRow"></tr></thead>
+  <tbody id="tbody"></tbody>
+</table>
+</div>
+
+<script>
+const COLUMNS = [
+  { key: 'read',        label: 'Read',        center: true },
+  { key: 'title',       label: 'Title' },
+  { key: 'author',      label: 'Author',      mobileHide: true },
+  { key: 'year',        label: 'Year',        numeric: true, mobileHide: true },
+  { key: 'pages',       label: 'Pages',       numeric: true },
+  { key: 'genre',       label: 'Genre',       filterable: true, mobileHide: true },
+  { key: 'pool',        label: 'Type',        filterable: true, mobileHide: true, hint: 'YA or grown-up' },
+  { key: 'awards',      label: 'Awards',      filterable: true, mobileHide: true, hint: 'hover for what each is' },
+  { key: 'maturity',    label: 'Maturity',    numeric: true, filterable: true, hint: '1 = fine at 12' },
+  { key: 'page_turner', label: 'Pull',        numeric: true, filterable: true, hint: '5 = can\'t put down', mobileHide: true },
+  { key: 'libby',       label: 'Libby',       filterable: true, mobileHide: true, hint: 'ebook' },
+];
+
+const AWARD_FAMILIES = ['Printz', 'National Book Award', 'Edgar', 'Morris', 'Newbery', 'Carnegie', 'Alex', 'Classic', 'Grown-up pick'];
+const AWARD_INFO = {
+  'Printz': 'The Michael L. Printz Award, from the American Library Association: the top U.S. prize for young adult books, given since 2000. One winner a year, plus up to four honor books.',
+  'National Book Award': 'The National Book Award for Young People\'s Literature, from the National Book Foundation. Five finalists a year and one winner, covering both middle-grade and YA books.',
+  'Edgar': 'The Edgar Award for Best Young Adult Mystery, from the Mystery Writers of America, named for Edgar Allan Poe. About five nominees a year and one winner.',
+  'Morris': 'The William C. Morris Award, from the American Library Association, for the best YA book by a first-time author. Five finalists a year and one winner.',
+  'Newbery': 'The Newbery Medal, from the American Library Association: the oldest U.S. children\'s book prize, given since 1922, for books for readers up to 14. One winner a year, plus honor books.',
+  'Carnegie': 'The Carnegie Medal: the UK\'s oldest children\'s book prize, given since 1936 and chosen by librarians. One winner a year.',
+  'Alex': 'The Alex Awards, from the American Library Association: each year, ten books written for adults that have special appeal to readers 12 to 18.',
+  'Classic': 'A classic written for adults, with no YA award. Its acclaim score was set by hand.',
+  'Grown-up pick': 'A recent novel written for adults that isn\'t on any of these award lists. Its acclaim score was set by hand.',
+};
+const LIBBY_API = 'https://thunder.api.overdrive.com/v2/libraries/berkeleypubliclibrary/media';
+
+let allBooks = [];
+let currentSort = { col: 'score', asc: true };
+let activeFilters = {};
+let openDropdown = null;
+let libbyCache = {};
+
+const $ = id => document.getElementById(id);
+
+// Read marks come from books.csv (kept up to date by hand); the page can't change them.
+const isRead = b => b.read;
+
+// --- Data ---
+function loadData() {
+  fetch('books.csv')
+    .then(r => r.text())
+    .then(text => {
+      const rows = Papa.parse(text, { header: true, skipEmptyLines: true, transformHeader: h => h.trim() }).data;
+      allBooks = rows.map(row => {
+        const c = {};
+        for (const k of Object.keys(row)) c[k.trim()] = (row[k] || '').trim();
+        const awards = c.awards || '';
+        return {
+          title: c.title || '',
+          author: c.author || '',
+          year: parseFloat(c.year_published) || NaN,
+          pages: parseFloat(c.pages) || NaN,
+          genre: c.genre || '',
+          pool: c.pool || '',
+          awards,
+          families: AWARD_FAMILIES.filter(f => awards.includes(f)),
+          acclaim: parseFloat(c.acclaim) || NaN,
+          page_turner: parseFloat(c.page_turner) || NaN,
+          maturity: parseFloat(c.maturity) || NaN,
+          maturity_note: c.maturity_note || '',
+          description: c.description || '',
+          read: (c.read || '').toLowerCase() === 'yes',
+        };
+      }).filter(b => b.title);
+      buildHeader();
+      updatePcts();
+      rank();
+    });
+}
+
+// --- Ranking (0 = best, as in the main chooser) ---
+function getWeights() {
+  return { acclaim: +$('w-acclaim').value, pull: +$('w-pull').value, length: +$('w-length').value, recency: +$('w-recency').value };
+}
+const norm15 = v => isNaN(v) ? NaN : (5 - v) / 4;            // 5 → 0 (best), 1 → 1
+function normPages(v) {                                        // log scale, 150 best → 700 worst
+  if (isNaN(v)) return NaN;
+  const lo = Math.log(150), hi = Math.log(700);
+  return (Math.log(Math.max(150, Math.min(700, v))) - lo) / (hi - lo);
+}
+function normYear(v) {                                         // log distance from 2026, floor 1850
+  if (isNaN(v)) return NaN;
+  const maxDist = 2026 - 1850;
+  return Math.log(2026 - Math.max(1850, Math.min(2026, v)) + 1) / Math.log(maxDist + 1);
+}
+function rank() {
+  const w = getWeights();
+  allBooks.forEach(b => {
+    const dims = [
+      [norm15(b.acclaim), w.acclaim],
+      [norm15(b.page_turner), w.pull],
+      [normPages(b.pages), w.length],
+      [normYear(b.year), w.recency],
+    ];
+    let ws = 0, vs = 0;
+    for (const [n, wt] of dims) if (!isNaN(n)) { ws += wt; vs += n * wt; }
+    b.score = ws > 0 ? vs / ws : 0.5;
+  });
+  renderTable();
+}
+function updatePcts() {
+  const w = getWeights();
+  const total = w.acclaim + w.pull + w.length + w.recency;
+  for (const d of ['acclaim', 'pull', 'length', 'recency']) {
+    $('pct-' + d).textContent = total ? '[' + Math.round(w[d] / total * 100) + '%]' : '';
+  }
+}
+
+// --- Filtering ---
+function libbyStatus(b) {
+  const info = libbyCache[b.title.toLowerCase()];
+  return info ? info.status : '';
+}
+function filterValues(b, key) {
+  if (key === 'awards') return b.families;
+  if (key === 'maturity') return isNaN(b.maturity) ? [] : [String(b.maturity)];
+  if (key === 'page_turner') return isNaN(b.page_turner) ? [] : [String(b.page_turner)];
+  if (key === 'libby') return libbyStatus(b) ? [libbyStatus(b)] : [];
+  return b[key] ? [b[key]] : [];
+}
+function getVisibleBooks() {
+  const q = $('search').value.toLowerCase();
+  const cap = +$('matCap').value;
+  let list = allBooks.filter(b => isNaN(b.maturity) || b.maturity <= cap);
+  if ($('hideRead').checked) list = list.filter(b => !isRead(b));
+  if (q) list = list.filter(b => b.title.toLowerCase().includes(q) || b.author.toLowerCase().includes(q));
+  for (const [key, val] of Object.entries(activeFilters)) list = list.filter(b => filterValues(b, key).includes(val));
+  return list;
+}
+
+function closeDropdown() { if (openDropdown) { openDropdown.remove(); openDropdown = null; } }
+function toggleDropdown(key, th) {
+  if (openDropdown && openDropdown.dataset.col === key) { closeDropdown(); return; }
+  closeDropdown();
+  const vals = new Set();
+  allBooks.forEach(b => filterValues(b, key).forEach(v => vals.add(v)));
+  const sorted = key === 'awards' ? AWARD_FAMILIES.filter(f => vals.has(f)) : [...vals].sort((a, b) => {
+    const na = parseFloat(a), nb = parseFloat(b);
+    return (!isNaN(na) && !isNaN(nb)) ? na - nb : a.localeCompare(b);
+  });
+  const dd = document.createElement('div');
+  dd.className = 'filter-dropdown';
+  dd.dataset.col = key;
+  const addOpt = (label, val) => {
+    const o = document.createElement('div');
+    o.className = 'filter-option' + ((activeFilters[key] || null) === val ? ' selected' : '');
+    o.textContent = label;
+    o.addEventListener('click', e => {
+      e.stopPropagation();
+      if (val === null) delete activeFilters[key]; else activeFilters[key] = val;
+      closeDropdown();
+      renderTable();
+    });
+    dd.appendChild(o);
+  };
+  addOpt('All', null);
+  sorted.forEach(v => addOpt(v, v));
+  th.appendChild(dd);
+  openDropdown = dd;
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('.filter-dropdown') && !e.target.closest('.filter-btn')) closeDropdown();
+  // Tap-to-show tips on touch screens
+  const tipHost = e.target.closest('.has-tip');
+  document.querySelectorAll('.has-tip.show').forEach(el => { if (el !== tipHost) el.classList.remove('show'); });
+  if (tipHost && window.matchMedia('(hover: none)').matches) tipHost.classList.add('show');
+});
+
+// --- Rendering ---
+function buildHeader() {
+  const tr = $('headerRow');
+  tr.innerHTML = '';
+  for (const col of COLUMNS) {
+    const th = document.createElement('th');
+    th.textContent = col.label;
+    if (col.numeric) th.classList.add('num');
+    if (col.center) th.classList.add('center');
+    if (col.mobileHide) th.classList.add('hide-mobile');
+    if (col.hint) {
+      const h = document.createElement('span');
+      h.className = 'col-hint';
+      h.textContent = col.hint;
+      th.appendChild(h);
+    }
+    const arrow = document.createElement('span');
+    arrow.className = 'arrow';
+    th.appendChild(arrow);
+    if (col.filterable) {
+      const fb = document.createElement('span');
+      fb.className = 'filter-btn';
+      fb.textContent = ' ▾';
+      fb.title = 'Filter';
+      fb.addEventListener('click', e => { e.stopPropagation(); toggleDropdown(col.key, th); });
+      th.appendChild(fb);
+    }
+    th.addEventListener('click', () => {
+      if (currentSort.col === col.key) currentSort.asc = !currentSort.asc;
+      else currentSort = { col: col.key, asc: !['acclaim', 'page_turner', 'year'].includes(col.key) };
+      renderTable();
+    });
+    th.dataset.key = col.key;
+    tr.appendChild(th);
+  }
+}
+
+function sortKey(b, col) {
+  switch (col) {
+    case 'score': return b.score;
+    case 'read': return isRead(b) ? 1 : 0;
+    case 'title': case 'author': case 'genre': case 'pool': case 'awards': return (b[col] || '').toLowerCase();
+    case 'libby': return ({ available: 0, holdable: 1, unavailable: 2 })[libbyStatus(b)] ?? 3;
+    default: return isNaN(b[col]) ? Infinity : b[col];
+  }
+}
+
+function makeTip(host, text, extraClass) {
+  host.classList.add('has-tip');
+  const tip = document.createElement('span');
+  tip.className = 'tip' + (extraClass ? ' ' + extraClass : '');
+  tip.textContent = text;
+  host.appendChild(tip);
+}
+
+function renderTable() {
+  const list = getVisibleBooks();
+  const { col, asc } = currentSort;
+  list.sort((a, b) => {
+    const va = sortKey(a, col), vb = sortKey(b, col);
+    if (va < vb) return asc ? -1 : 1;
+    if (va > vb) return asc ? 1 : -1;
+    return a.score - b.score;
+  });
+
+  // Active filter tags
+  const af = $('activeFilters');
+  af.innerHTML = '';
+  for (const [key, val] of Object.entries(activeFilters)) {
+    const colDef = COLUMNS.find(c => c.key === key);
+    const tag = document.createElement('span');
+    tag.className = 'filter-tag';
+    tag.textContent = colDef.label + ': ' + val;
+    const rm = document.createElement('span');
+    rm.className = 'remove';
+    rm.textContent = '×';
+    rm.addEventListener('click', () => { delete activeFilters[key]; renderTable(); });
+    tag.appendChild(rm);
+    af.appendChild(tag);
+  }
+  $('headerRow').querySelectorAll('th').forEach(th => {
+    const k = th.dataset.key;
+    th.querySelector('.arrow').textContent = currentSort.col === k ? (currentSort.asc ? ' ▲' : ' ▼') : '';
+    const fb = th.querySelector('.filter-btn');
+    if (fb) fb.classList.toggle('active', !!activeFilters[k]);
+  });
+
+  const top = $('topN').value;
+  const shown = top === 'all' ? list : list.slice(0, parseInt(top, 10));
+  const readCount = allBooks.filter(isRead).length;
+  $('bookCount').textContent = list.length + ' of ' + allBooks.length + ' books · ' + readCount + ' read';
+
+  const tbody = $('tbody');
+  tbody.innerHTML = '';
+  for (const b of shown) {
+    const tr = document.createElement('tr');
+    const read = isRead(b);
+    if (read) tr.classList.add('read');
+    for (const c of COLUMNS) {
+      const td = document.createElement('td');
+      if (c.numeric) td.classList.add('num');
+      if (c.center) td.classList.add('center');
+      if (c.mobileHide) td.classList.add('hide-mobile');
+      switch (c.key) {
+        case 'read':
+          if (read) {
+            const mark = document.createElement('span');
+            mark.className = 'read-mark';
+            mark.textContent = '✓';
+            mark.setAttribute('aria-label', 'Read');
+            td.appendChild(mark);
+          }
+          break;
+        case 'title':
+          td.classList.add('title-cell');
+          td.textContent = b.title;
+          if (b.description) makeTip(td, b.description);
+          break;
+        case 'year': td.textContent = isNaN(b.year) ? '—' : b.year; break;
+        case 'pages': td.textContent = isNaN(b.pages) ? '—' : b.pages; break;
+        case 'awards': {
+          td.classList.add('awards');
+          b.awards.split(' · ').forEach((part, i) => {
+            if (i) td.appendChild(document.createTextNode(' · '));
+            const span = document.createElement('span');
+            span.className = 'award-part';
+            span.textContent = part;
+            const fam = AWARD_FAMILIES.find(f => part.startsWith(f));
+            if (fam) makeTip(span, AWARD_INFO[fam]);
+            td.appendChild(span);
+          });
+          break;
+        }
+        case 'maturity': {
+          if (isNaN(b.maturity)) { td.textContent = '—'; break; }
+          const chip = document.createElement('span');
+          chip.className = 'mat m' + b.maturity;
+          chip.textContent = b.maturity;
+          td.appendChild(chip);
+          if (b.maturity_note) makeTip(td, b.maturity_note, 'right');
+          break;
+        }
+        case 'page_turner': td.textContent = isNaN(b.page_turner) ? '—' : b.page_turner; break;
+        case 'libby': td.appendChild(makeBadge(libbyCache[b.title.toLowerCase()])); break;
+        default: td.textContent = b[c.key] || '';
+      }
+      tr.appendChild(td);
+    }
+    tbody.appendChild(tr);
+  }
+}
+
+// --- Libby (Berkeley Public Library, ebooks) ---
+async function checkLibby(b) {
+  const key = b.title.toLowerCase();
+  if (libbyCache[key]) return;
+  const result = { status: 'unavailable', detail: 'Not in catalog' };
+  try {
+    const q = encodeURIComponent(b.title + ' ' + b.author.split(',')[0]);
+    const resp = await fetch(LIBBY_API + '?query=' + q + '&limit=10');
+    if (!resp.ok) throw new Error('API error');
+    const data = await resp.json();
+    for (const item of (data.items || [])) {
+      const t = (item.title || '').toLowerCase();
+      if (!(t === key || t.startsWith(key) || key.startsWith(t))) continue;
+      if (!item.type || item.type.id !== 'ebook') continue;
+      if (item.isAvailable) { Object.assign(result, { status: 'available', detail: item.availableCopies + ' of ' + item.ownedCopies + ' available' }); break; }
+      if (item.ownedCopies > 0) {
+        const parts = [item.holdsCount ? item.holdsCount + ' holds' : '', item.estimatedWaitDays ? '~' + item.estimatedWaitDays + ' days' : ''];
+        Object.assign(result, { status: 'holdable', detail: parts.filter(Boolean).join(', ') });
+      }
+    }
+  } catch (e) {
+    result.detail = 'Could not reach Libby';
+  }
+  libbyCache[key] = result;
+}
+function makeBadge(info) {
+  const s = document.createElement('span');
+  s.className = 'avail-badge';
+  if (!info) { s.classList.add('unchecked'); s.textContent = '—'; return s; }
+  s.title = info.detail;
+  if (info.status === 'available') { s.classList.add('available'); s.textContent = 'Now'; }
+  else if (info.status === 'holdable') { s.classList.add('holdable'); s.textContent = 'Hold'; }
+  else { s.classList.add('unavailable'); s.textContent = 'No'; }
+  return s;
+}
+async function checkVisible() {
+  const btn = $('availBtn');
+  btn.disabled = true;
+  const top = $('topN').value;
+  const list = getVisibleBooks().sort((a, b) => a.score - b.score);
+  const toCheck = top === 'all' ? list : list.slice(0, parseInt(top, 10));
+  for (let i = 0; i < toCheck.length; i += 3) {
+    await Promise.all(toCheck.slice(i, i + 3).map(checkLibby));
+    $('status').textContent = 'Checking Berkeley Libby… ' + Math.min(i + 3, toCheck.length) + '/' + toCheck.length;
+    renderTable();
+    await new Promise(r => setTimeout(r, 250));
+  }
+  const res = toCheck.map(b => libbyCache[b.title.toLowerCase()]);
+  $('status').textContent = 'Checked ' + toCheck.length + ' ebooks: ' +
+    res.filter(r => r.status === 'available').length + ' available now, ' +
+    res.filter(r => r.status === 'holdable').length + ' on hold lists.';
+  btn.textContent = 'Re-check Libby';
+  btn.disabled = false;
+}
+
+// --- Wiring ---
+['acclaim', 'pull', 'length', 'recency'].forEach(d => {
+  const s = $('w-' + d);
+  s.addEventListener('input', () => {
+    $('v-' + d).textContent = s.value;
+    currentSort = { col: 'score', asc: true };   // moving a slider goes back to slider ranking
+    updatePcts();
+    rank();
+  });
+});
+['topN', 'matCap', 'hideRead'].forEach(id => $(id).addEventListener('change', renderTable));
+$('search').addEventListener('input', renderTable);
+$('availBtn').addEventListener('click', checkVisible);
+
+loadData();
+</script>
+</body>
+</html>
