@@ -142,8 +142,8 @@ tr.read .mat { opacity: 0.5; }
 <body>
 
 <h1>YA Book Chooser</h1>
-<p class="subtitle">Award-winning young adult books, plus grown-up books a strong middle-school reader can handle. Hover over (or tap) a title for what it's about, and the maturity number for what drives it. A check mark means it's been read.</p>
-<p class="caveat">Prototype. Award results come from the awards' published lists. Maturity follows Common Sense Media's age ratings where they exist (76 of 100 books). Descriptions and page-turner scores are Claude's, with descriptions checked against publisher summaries.</p>
+<p class="subtitle">Award-winning young adult books, plus grown-up books a strong middle-school reader can handle. Hover over (or tap) a title for what it's about, and the maturity number for what drives it. A check mark means it's been read. For sports books, type "sports" in the search box.</p>
+<p class="caveat">Prototype. Award results come from the awards' published lists. Maturity follows Common Sense Media's age ratings where they exist (89 of 130 books). Descriptions and page-turner scores are Claude's, with descriptions checked against publisher summaries.</p>
 
 <div class="controls">
   <div class="slider-group">
@@ -184,7 +184,7 @@ tr.read .mat { opacity: 0.5; }
       <option value="all">All</option>
     </select>
   </label>
-  <input type="text" class="search-box" id="search" placeholder="Search title or author…">
+  <input type="text" class="search-box" id="search" placeholder="Search title, author or genre…">
   <label><input type="checkbox" id="hideRead"> Hide read</label>
   <button class="btn" id="availBtn">Check Libby</button>
   <span class="active-filters" id="activeFilters"></span>
@@ -214,7 +214,7 @@ const COLUMNS = [
   { key: 'libby',       label: 'Libby',       filterable: true, mobileHide: true, hint: 'ebook' },
 ];
 
-const AWARD_FAMILIES = ['Printz', 'National Book Award', 'Edgar', 'Morris', 'Newbery', 'Carnegie', 'Alex', 'Classic', 'Grown-up pick'];
+const AWARD_FAMILIES = ['Printz', 'National Book Award', 'Edgar', 'Morris', 'Newbery', 'Carnegie', 'Alex', 'Classic', 'YA pick', 'Grown-up pick'];
 const AWARD_INFO = {
   'Printz': 'The Michael L. Printz Award, from the American Library Association: the top U.S. prize for young adult books, given since 2000. One winner a year, plus up to four honor books.',
   'National Book Award': 'The National Book Award for Young People\'s Literature, from the National Book Foundation. Five finalists a year and one winner, covering both middle-grade and YA books.',
@@ -224,7 +224,8 @@ const AWARD_INFO = {
   'Carnegie': 'The Carnegie Medal: the UK\'s oldest children\'s book prize, given since 1936 and chosen by librarians. One winner a year.',
   'Alex': 'The Alex Awards, from the American Library Association: each year, ten books written for adults that have special appeal to readers 12 to 18.',
   'Classic': 'A classic written for adults, with no YA award. Its acclaim score was set by hand.',
-  'Grown-up pick': 'A recent novel written for adults that isn\'t on any of these award lists. Its acclaim score was set by hand.',
+  'YA pick': 'A young adult book that isn\'t on any of these award lists. Its acclaim score was set by hand.',
+  'Grown-up pick': 'A recent book written for adults that isn\'t on any of these award lists. Its acclaim score was set by hand.',
 };
 const LIBBY_API = 'https://thunder.api.overdrive.com/v2/libraries/berkeleypubliclibrary/media';
 
@@ -327,7 +328,7 @@ function getVisibleBooks() {
   const cap = +$('matCap').value;
   let list = allBooks.filter(b => isNaN(b.maturity) || b.maturity <= cap);
   if ($('hideRead').checked) list = list.filter(b => !isRead(b));
-  if (q) list = list.filter(b => b.title.toLowerCase().includes(q) || b.author.toLowerCase().includes(q));
+  if (q) list = list.filter(b => [b.title, b.author, b.genre].some(v => v.toLowerCase().includes(q)));
   for (const [key, val] of Object.entries(activeFilters)) list = list.filter(b => filterValues(b, key).includes(val));
   return list;
 }
